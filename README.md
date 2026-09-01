@@ -34,6 +34,8 @@ $HarnessDir = "C:\path\to\DSH-Desktop"
 $PluginDir = "C:\path\to\model-router-galgame"
 ```
 
+Keep using the same PowerShell window so these variables remain available. If either repository is already on your computer, set the matching variable to its existing folder and skip that repository's `git clone` command.
+
 ### 1. Prepare Harness
 
 ```powershell
@@ -171,6 +173,7 @@ To update a native Web profile, download the new release directory/archive and r
 To remove the plugin from the Web profile:
 
 ```powershell
+Set-Location $HarnessDir
 pnpm dsh plugin --profile web remove model-router-galgame
 pnpm dsh web
 ```

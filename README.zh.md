@@ -34,6 +34,8 @@ $HarnessDir = "C:\path\to\DSH-Desktop"
 $PluginDir = "C:\path\to\model-router-galgame"
 ```
 
+请在同一个 PowerShell 窗口中继续执行下面的命令，这样变量会一直有效。如果电脑上已经有其中一个仓库，只需把对应变量改成现有目录，并跳过那个仓库的 `git clone` 命令。
+
 ### 1. 准备 Harness
 
 ```powershell
@@ -171,6 +173,7 @@ npm run check:client
 从 Web profile 卸载：
 
 ```powershell
+Set-Location $HarnessDir
 pnpm dsh plugin --profile web remove model-router-galgame
 pnpm dsh web
 ```
