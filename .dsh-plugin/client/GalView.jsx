@@ -3,7 +3,7 @@
  * inputActions（发送走宿主输入机，与普通输入框同一管线）。
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StageView } from './StageView.jsx'
 import { Editor } from './Editor.jsx'
 import { SafeMarkdownText } from './SafeMarkdownText.jsx'
@@ -26,18 +26,21 @@ function browserStorage() {
   try { return typeof window !== 'undefined' ? window.localStorage : null } catch { return null }
 }
 
-/** 发送玩家输入：走宿主输入机（adjudication/claim/默认 sink 同一管线）。 */
-function useSend(inputActions, draft, setDraft, hasImages) {
+/** 发送玩家输入：先提交最新草稿到宿主，再走原生输入机。 */
+function useSend(inputActions, draft, setDraft, hasImages, syncDraft) {
   return useCallback(() => {
     const text = draft.trim()
     if (text === '' && !hasImages) return
+    syncDraft(draft)
     inputActions.submit()
     setDraft('')
-  }, [draft, hasImages, inputActions, setDraft])
+    syncDraft('')
+  }, [draft, hasImages, inputActions, setDraft, syncDraft])
 }
 
 const DOCUMENT_EXTENSIONS = /\.(?:md|markdown|txt|text|csv|tsv|json|jsonl|xml|html?|css|js|jsx|ts|tsx|py|java|c|cc|cpp|h|hpp|rs|go|rb|php|sql|yaml|yml|toml|ini|cfg|log)$/i
 const DOCUMENT_TEXT_LIMIT = 4 * 1024 * 1024
+const EMPTY_IMAGE_IDS = []
 
 function isImageFile(file) {
   return typeof file?.type === 'string' && file.type.startsWith('image/')
@@ -437,7 +440,14 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
   const runningCalls = Array.isArray(legacy?.runningCalls) ? legacy.runningCalls : []
   const pending = Array.isArray(session?.pendingSubmissions) ? session.pendingSubmissions : []
   const promptError = session?.promptError ?? null
-  const inputState = typeof useInput === 'function' ? useInput(s => s) : null
+  // GAL only needs the draft and image ids. Ignore unrelated input-machine
+  // changes (queue/phase/notices) so they cannot interrupt text editing.
+  const inputState = typeof useInput === 'function'
+    ? useInput(
+      s => ({ draft: typeof s?.draft === 'string' ? s.draft : '', imageIds: Array.isArray(s?.imageIds) ? s.imageIds : EMPTY_IMAGE_IDS }),
+      (a, b) => a?.draft === b?.draft && a?.imageIds === b?.imageIds,
+    )
+    : null
   const routerSnapshot = typeof useRouter === 'function' ? useRouter(s => s) : null
   const sessionList = typeof useSessions === 'function' ? useSessions(s => s) : null
 
@@ -454,7 +464,11 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
   const [pageIndex, setPageIndex] = useState(0)
   const [routerMode, setRouterMode] = useState('collective')
   const rootRef = useRef(null)
+  const inputBoxRef = useRef(null)
+  const draftSelectionRef = useRef(null)
   const draftRef = useRef('')
+  const hostDraftRef = useRef('')
+  const draftFocusedRef = useRef(false)
   const awaitingHostDraftRef = useRef(null)
   const taskbarTimerRef = useRef(null)
   // 阅读状态恢复/保存（标签页切换与刷新后不从头渲染）。
@@ -463,27 +477,54 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
   const restoredKeyRef = useRef(null)
   useFillSessionArea(rootRef)
 
-  // Keep the local GAL textarea and the Host-owned Lexical draft in lockstep.
-  // The Host draft remains the submission source for the shared input machine.
+  // Keep a responsive local draft while syncing to the Host only at explicit
+  // handoff points. Calling setDraft for every key rebuilds the Host Lexical
+  // tree and makes the GAL textarea lose its smooth caret/input rhythm.
   const updateDraft = useCallback(next => {
     const value = typeof next === 'function' ? next(draftRef.current) : String(next ?? '')
     draftRef.current = value
-    awaitingHostDraftRef.current = value
     setDraft(value)
+  }, [])
+  useLayoutEffect(() => {
+    const selection = draftSelectionRef.current
+    const input = inputBoxRef.current
+    if (selection === null || input === null || document.activeElement !== input) return
+    const start = Math.max(0, Math.min(selection.start, input.value.length))
+    const end = Math.max(start, Math.min(selection.end, input.value.length))
+    input.setSelectionRange(start, end, selection.direction)
+    draftSelectionRef.current = null
+  }, [draft])
+  const syncDraft = useCallback((next = draftRef.current) => {
+    const value = typeof next === 'function' ? next(draftRef.current) : String(next ?? '')
+    draftRef.current = value
+    if (value === hostDraftRef.current) {
+      awaitingHostDraftRef.current = null
+      return
+    }
+    awaitingHostDraftRef.current = value
     inputActions?.setDraft?.(value)
   }, [inputActions])
   useEffect(() => {
     const hostDraft = typeof inputState?.draft === 'string' ? inputState.draft : ''
+    hostDraftRef.current = hostDraft
     const awaiting = awaitingHostDraftRef.current
     if (awaiting !== null) {
       if (hostDraft === awaiting) awaitingHostDraftRef.current = null
       else return
     }
+    // An empty focused draft is the post-submit window: allow the Host to
+    // restore a failed submission instead of hiding it behind focus protection.
+    if (draftFocusedRef.current && draftRef.current !== '') return
     if (hostDraft !== draftRef.current) {
       draftRef.current = hostDraft
       setDraft(hostDraft)
     }
   }, [inputState?.draft])
+  useEffect(() => () => {
+    // Preserve a draft when the GAL tab is unmounted during a session switch.
+    const value = draftRef.current
+    if (value !== hostDraftRef.current) inputActions?.setDraft?.(value)
+  }, [inputActions])
 
   const clearTaskbarTimer = useCallback(() => {
     if (taskbarTimerRef.current !== null) {
@@ -910,13 +951,15 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
     }
   }, [running, type.done, hasNextPage, pageIndex, skipTyping])
   const hasImages = Array.isArray(inputState?.imageIds) && inputState.imageIds.length > 0
-  const send = useSend(inputActions, draft, updateDraft, hasImages)
+  const send = useSend(inputActions, draft, updateDraft, hasImages, syncDraft)
   const handleRouterMode = useCallback(nextMode => {
     const normalized = nextMode === 'single' ? 'single' : 'collective'
+    const command = '/router mode ' + normalized
     setRouterMode(normalized)
-    inputActions.setDraft('/router mode ' + normalized)
+    updateDraft(command)
+    syncDraft(command)
     inputActions.submit()
-  }, [inputActions])
+  }, [inputActions, syncDraft, updateDraft])
 
   // 透明功能按钮：历史/自动/快进/设置（原底部控制栏已移除，功能由场景内按钮承载）。
   const handleAction = useCallback(action => {
@@ -1038,9 +1081,23 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
           >
             <AttachmentPicker inputActions={inputActions} inputState={inputState} attachmentApi={attachmentApi} draft={draft} setDraft={updateDraft} />
             <textarea
+              ref={inputBoxRef}
               className="gv-input-box"
               value={draft}
-              onChange={e => updateDraft(e.target.value)}
+              onFocus={() => { draftFocusedRef.current = true }}
+              onBlur={() => {
+                draftFocusedRef.current = false
+                draftSelectionRef.current = null
+                syncDraft()
+              }}
+              onChange={e => {
+                draftSelectionRef.current = {
+                  start: e.currentTarget.selectionStart ?? e.currentTarget.value.length,
+                  end: e.currentTarget.selectionEnd ?? e.currentTarget.value.length,
+                  direction: e.currentTarget.selectionDirection ?? 'none',
+                }
+                updateDraft(e.currentTarget.value)
+              }}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault()
