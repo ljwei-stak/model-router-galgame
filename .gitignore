@@ -1,0 +1,14 @@
+node_modules/
+.dsh/
+.env
+.env.*
+!.env.example
+coverage/
+dist/
+build/
+test-artifacts/
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db

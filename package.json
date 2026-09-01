@@ -1,0 +1,32 @@
+{
+  "name": "model-router-galgame",
+  "version": "0.4.10",
+  "private": true,
+  "type": "module",
+  "description": "DeepSeek Harness plugin: adaptive model routing, cost analysis and GAL view",
+  "main": "./.dsh-plugin/index.mjs",
+  "exports": {
+    ".": "./.dsh-plugin/index.mjs",
+    "./client": "./.dsh-plugin/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web", "inject": ["slots", "sessions", "modelDirectories", "conversation", "connection"] }
+  },
+  "dshUpdater": {
+    "minDesktopVersion": "0.4.8",
+    "minRuntimeVersion": "0.4.8"
+  },
+  "scripts": {
+    "build:client": "node scripts/build-client.mjs",
+    "check:client": "node scripts/build-client.mjs --check",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/dsh-settings": "^0.1.1-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  }
+}

@@ -1,0 +1,5 @@
+# Model Router + GAL 视窗 bundle。安装到 web profile 后，Host half 负责
+# agent/pre-step / agent/request 路由，browser half 注册 GAL conversation.view。
+- insert:
+    - id: model-router-galgame
+      name: model-router-galgame
