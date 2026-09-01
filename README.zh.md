@@ -26,13 +26,19 @@ API Key 应放在 Harness 的凭据/设置存储或其支持的环境配置中�
 
 ## 在 DeepSeek Harness 中安装
 
-下面的命令以 Windows PowerShell 为例。建议使用绝对插件路径，避免误把同名目录安装进去。
+下面的命令以 Windows PowerShell 为例。Harness 和插件可以放在任意目录，不要求使用特定盘符或文件夹名称。先设置两个路径变量，后面的命令直接复用它们。
+
+```powershell
+# 把下面两个路径改成你电脑上的实际目录。
+$HarnessDir = "C:\path\to\DSH-Desktop"
+$PluginDir = "C:\path\to\model-router-galgame"
+```
 
 ### 1. 准备 Harness
 
 ```powershell
-git clone https://github.com/deepseek-ai/deepseek-harness.git F:\DeepSeek_harness\DSH-Desktop
-Set-Location F:\DeepSeek_harness\DSH-Desktop
+git clone https://github.com/deepseek-ai/deepseek-harness.git $HarnessDir
+Set-Location $HarnessDir
 pnpm install --frozen-lockfile
 pnpm run build
 ```
@@ -44,7 +50,7 @@ pnpm run build
 将独立仓库克隆到 Harness 目录之外，或者下载 Release 压缩包：
 
 ```powershell
-git clone https://github.com/ljwei-stak/model-router-galgame.git F:\DeepSeek_harness\model-router-galgame
+git clone https://github.com/ljwei-stak/model-router-galgame.git $PluginDir
 ```
 
 传给安装器的目录必须同时包含 `package.json`、`.dsh-plugin\index.mjs`、`.dsh-plugin\client.js` 和 `cordis.patch.yml`。
@@ -54,8 +60,8 @@ git clone https://github.com/ljwei-stak/model-router-galgame.git F:\DeepSeek_har
 从 Harness 根目录运行插件管理器：
 
 ```powershell
-Set-Location F:\DeepSeek_harness\DSH-Desktop
-pnpm dsh plugin --profile web add "F:\DeepSeek_harness\model-router-galgame"
+Set-Location $HarnessDir
+pnpm dsh plugin --profile web add $PluginDir
 ```
 
 当独立 `dsh` 命令没有加入 `PATH` 时，应使用 `pnpm dsh`。如果桌面安装版提供了 `dsh.exe`，等价命令是：
@@ -67,6 +73,7 @@ dsh plugin --profile web add <plugin-directory>
 ### 4. 启动或重启 Web
 
 ```powershell
+Set-Location $HarnessDir
 pnpm dsh web
 ```
 
@@ -183,4 +190,3 @@ pnpm dsh web
 ## 许可证和素材
 
 源代码采用 MIT License，见 [LICENSE](LICENSE)。GAL 交互方式参考 [Ayase34/gal-view](https://github.com/Ayase34/gal-view)。模型娘形象与人物设定来源于 [Bilibili 用户 4168597](https://space.bilibili.com/4168597)。`aipicture/`、场景素材和截图不自动继承源代码 MIT 许可证；商业使用或再分发前请核对素材许可并取得必要授权。
-

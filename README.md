@@ -26,13 +26,19 @@ API keys belong in Harness' credential/settings storage or its supported environ
 
 ## Install in DeepSeek Harness
 
-The commands below are for Windows PowerShell. Use an absolute plugin path; it avoids installing a similarly named directory by accident.
+The commands below use Windows PowerShell. You can store Harness and this plugin in any folders you like. Set the two paths once, then reuse the variables in the remaining commands.
+
+```powershell
+# Change these two paths to folders on your computer.
+$HarnessDir = "C:\path\to\DSH-Desktop"
+$PluginDir = "C:\path\to\model-router-galgame"
+```
 
 ### 1. Prepare Harness
 
 ```powershell
-git clone https://github.com/deepseek-ai/deepseek-harness.git F:\DeepSeek_harness\DSH-Desktop
-Set-Location F:\DeepSeek_harness\DSH-Desktop
+git clone https://github.com/deepseek-ai/deepseek-harness.git $HarnessDir
+Set-Location $HarnessDir
 pnpm install --frozen-lockfile
 pnpm run build
 ```
@@ -44,7 +50,7 @@ If Harness is already checked out, run `pnpm install` and `pnpm run build` once 
 Clone the independent repository somewhere outside the Harness checkout, or download a release archive:
 
 ```powershell
-git clone https://github.com/ljwei-stak/model-router-galgame.git F:\DeepSeek_harness\model-router-galgame
+git clone https://github.com/ljwei-stak/model-router-galgame.git $PluginDir
 ```
 
 The directory passed to the installer must contain `package.json`, `.dsh-plugin\index.mjs`, `.dsh-plugin\client.js`, and `cordis.patch.yml`.
@@ -54,8 +60,8 @@ The directory passed to the installer must contain `package.json`, `.dsh-plugin\
 Run the plugin manager from the Harness checkout:
 
 ```powershell
-Set-Location F:\DeepSeek_harness\DSH-Desktop
-pnpm dsh plugin --profile web add "F:\DeepSeek_harness\model-router-galgame"
+Set-Location $HarnessDir
+pnpm dsh plugin --profile web add $PluginDir
 ```
 
 `pnpm dsh` is the reliable form when the standalone `dsh` command is not on `PATH`. If a packaged Harness installation provides `dsh.exe`, the equivalent is:
@@ -67,6 +73,7 @@ dsh plugin --profile web add <plugin-directory>
 ### 4. Start or restart Web
 
 ```powershell
+Set-Location $HarnessDir
 pnpm dsh web
 ```
 
@@ -183,4 +190,3 @@ Removing the plugin does not remove provider credentials, model prices, session 
 ## License and artwork
 
 The source code is released under the MIT License; see [LICENSE](LICENSE). The GAL interaction is inspired by [`Ayase34/gal-view`](https://github.com/Ayase34/gal-view). Character artwork and character concepts are attributed to [Bilibili space 4168597](https://space.bilibili.com/4168597). Artwork in `aipicture/`, scene assets, and screenshots are not automatically covered by the source-code MIT license. Check the source terms and obtain permission before commercial use or redistribution.
-
