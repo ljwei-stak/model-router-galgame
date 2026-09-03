@@ -10,12 +10,16 @@ import {
 } from './shared/router.mjs'
 import { fetchLiveBenchSnapshot } from './shared/livebench.mjs'
 import { buildPersonaPrompt, isPersonaPrompt } from './shared/persona.mjs'
+import {
+  contentHasImage,
+  modLensUpstream,
+  routeThroughModLens,
+} from './shared/modlens-routing.mjs'
 
 let settingsRuntimePromise
 let routerSettings = { ...DEFAULT_ROUTER_SETTINGS }
 let routerSettingsReady = false
 let routerSettingsPromise = Promise.resolve(false)
-
 async function loadSettingsRuntime() {
   if (settingsRuntimePromise !== undefined) return settingsRuntimePromise
   settingsRuntimePromise = Promise.all([
@@ -104,6 +108,8 @@ function stateFor(agent) {
       liveBenchFetchedAt: 0,
       liveBenchPromise: null,
       liveBenchError: null,
+      visionBridges: [],
+      hasImageBlocks: false,
     }
     states.set(agent, state)
     allStates.add(state)
@@ -115,17 +121,40 @@ async function discover(ctx, state) {
   if (state.directoryPromise !== null) return state.directoryPromise
   state.directoryPromise = (async () => {
     const routes = []
+    const visionBridges = []
     let providers = []
     try { providers = ctx.llm.listProviders() } catch { providers = [] }
     for (const provider of providers) {
+      // Synthetic ModLens routes are selectable in the native model picker,
+      // but collective routing evaluates the underlying provider only. This
+      // prevents a wrapper from competing with its own upstream route and
+      // avoids a second image conversion in collective mode.
+      const bridgeUpstream = modLensUpstream(provider?.id)
+      if (bridgeUpstream !== null) {
+        try {
+          const models = await ctx.llm.listModels(provider.id)
+          for (const model of models) visionBridges.push({ provider: provider.id, upstream: bridgeUpstream, model: model.id })
+        } catch {
+          // A failed synthetic catalog must not hide the usable upstream models.
+        }
+        continue
+      }
       try {
         const models = await ctx.llm.listModels(provider.id)
-        for (const model of models) routes.push({ provider: provider.id, model: model.id })
+        for (const model of models) {
+          const inputModalities = model.inputModalities ?? model.input ?? []
+          routes.push({
+            provider: provider.id,
+            model: model.id,
+            inputModalities: Array.isArray(inputModalities) ? [...inputModalities] : [],
+          })
+        }
       } catch (error) {
         ctx.logger?.debug?.(`model-router: model discovery failed for ${provider.id}: ${String(error)}`)
       }
     }
     state.available = routes
+    state.visionBridges = visionBridges
     return routes
   })().catch(error => {
     state.directoryPromise = null
@@ -406,7 +435,12 @@ export function apply(ctx) {
   ctx.commands.register({
     name: 'router',
     description: 'switch Model Router mode or inspect the latest routing plan',
-    input: { hint: 'mode collective|single | plan' },
+    // A router mode command is metadata-only. Accepting an attached image
+    // lets the client execute it without the generic command gate rejecting
+    // the whole composer submission; the GAL client sends this command
+    // without image bytes so the attachment remains available for the next
+    // user turn.
+    input: { hint: 'mode collective|single | plan', images: true },
     recordInput: true,
     handler: ({ agent, rawInput }) => {
       const state = stateFor(agent)
@@ -460,8 +494,10 @@ export function apply(ctx) {
       state.collaboration = null
       state.taskText = ''
       state.personaInjected = false
+      state.hasImageBlocks = false
     }
     state.turn = turn
+    state.hasImageBlocks ||= messages.some(message => contentHasImage(message?.content))
     if (state.mode !== 'collective' || signal?.aborted) {
       if (state.taskText === '') state.taskText = inputText(messages)
       const proposed = await next()
@@ -470,7 +506,7 @@ export function apply(ctx) {
       if (hasPersona) state.personaInjected = true
       const personaContext = state.personaInjected ? null : personaMessage(state, agent, Number.isFinite(Number(step)) ? Number(step) : 1)
       if (personaContext === null) return proposed
-      state.personaInjected = true
+      if (personaContext !== null) state.personaInjected = true
       return { ...proposed, messages: [...proposed.messages, personaContext] }
     }
     const available = await discover(ctx, state)
@@ -549,7 +585,14 @@ export function apply(ctx) {
         target = { provider: fallback.provider, model: fallback.model, estimatedCost: target.estimatedCost }
       }
     }
-    state.lastTarget = { provider: target.provider, model: target.model }
+    const plannedProvider = target.provider
+    target = routeThroughModLens({
+      target,
+      available: state.available,
+      visionBridges: state.visionBridges,
+      hasImageBlocks: state.hasImageBlocks,
+    })
+    state.lastTarget = { provider: target.provider, model: target.model, plannedProvider }
     state.lastStep = step
     // Keep all non-routing request fields intact. If a route disappeared after
     // discovery, the LLM runtime will validate the proposal and the original
@@ -579,7 +622,7 @@ export function apply(ctx) {
     if (signal?.aborted || state.mode !== 'collective' || !modelFallbackError(failure)) return next()
     const failed = state.lastTarget?.provider === provider ? state.lastTarget : null
     if (failed === null) return next()
-    state.failedModels.add(routeKey(failed.provider, failed.model))
+    state.failedModels.add(routeKey(failed.plannedProvider ?? failed.provider, failed.model))
     const fallback = nextAvailableTarget(state)
     if (fallback === null) return next()
     if (state.plan !== null) {

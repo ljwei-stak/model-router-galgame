@@ -13,7 +13,7 @@
   },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web", "inject": ["slots", "sessions", "modelDirectories", "conversation", "connection"] }
+    "client": { "platform": "web", "inject": ["slots", "sessions", "modelDirectories", "conversation", "connection", "remote", "remote.session"] }
   },
   "dshUpdater": {
     "minDesktopVersion": "0.4.8",

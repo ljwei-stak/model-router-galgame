@@ -23,13 +23,14 @@ import {
   extOf, embedFonts, extractFonts, createIdbFonts,
 } from './fonts.mjs'
 import { createObservable, createHistory, createStorage, loadJSON, saveJSON } from './store.mjs'
+import { catalogSnapshot, selectModelThroughRemote } from './model-directory-bridge.mjs'
 import { DEFAULT_ROUTER_SETTINGS, MODEL_CATALOG, MODEL_ROUTER_SETTINGS_NAMESPACE } from '../shared/router.mjs'
 // 默认预设场景：仓库根 gal-scene.json（编辑器导出的格式，内嵌被引用的素材/字体）。
 import presetScene from '../../gal-scene.json'
 
 export const name = 'gal-view'
 
-const PROJECT_URL = 'https://github.com/ljwei-stak/model-router-galgame'
+const PROJECT_URL = 'https://github.com/ljwei-stak/deepseek-harness'
 const RELEASES_URL = `${PROJECT_URL}/releases`
 const PLUGIN_VERSION = '0.4.10'
 
@@ -86,7 +87,7 @@ function createPricingApi(ctx) {
 }
 
 /** 依赖服务：槽位系统（会话数据经槽位框架注入，无需直接消费 sessions）。 */
-export const inject = ['slots', 'sessions', 'modelDirectories', 'conversation', 'connection']
+export const inject = ['slots', 'sessions', 'modelDirectories', 'conversation', 'connection', 'remote', 'remote.session']
 
 const PERSIST_KEY = 'gal-view:scene:v1'
 const ENABLED_KEY = 'gal-view:enabled'
@@ -574,7 +575,10 @@ export function apply(ctx) {
       available: [],
       current: null,
       groups: [],
-      status: 'idle',
+      // The directory is loaded as soon as a GAL session is mounted. Mark it
+      // as loading immediately so the picker never presents an empty
+      // "选择模型" state as if the model catalog had been deleted.
+      status: 'loading',
       error: null,
     })
     routerSources.set(key, source)
@@ -592,17 +596,25 @@ export function apply(ctx) {
       routerDirectories.set(key, directory)
       const syncDirectory = () => {
         const state = directory.store?.getSnapshot?.() ?? {}
-        const groups = Array.isArray(state.groups) ? state.groups : []
-        const available = []
+        const previous = source.getSnapshot()
+        const loadedGroups = Array.isArray(state.groups) ? state.groups : []
+        // ModelDirectory intentionally exposes an empty group list while its
+        // shared catalog is loading. Retain the last good catalog during that
+        // window so an adapter refresh cannot make the picker flash empty.
+        const groups = loadedGroups.length > 0 ? loadedGroups : (previous.groups ?? [])
+        const fromGroups = []
         for (const group of groups) {
-          for (const model of group.models ?? []) available.push({ provider: group.id, model: model.id })
+          for (const model of group.models ?? []) fromGroups.push({ provider: group.id, model: model.id })
         }
+        const available = fromGroups.length > 0 ? fromGroups : (previous.available ?? [])
+        const rawStatus = state.status ?? 'loading'
+        const status = rawStatus === 'idle' && groups.length === 0 && available.length === 0 ? 'loading' : rawStatus
         source.update({
-          ...source.getSnapshot(),
+          ...previous,
           available,
-          current: state.current ?? null,
+          current: state.current ?? previous.current ?? null,
           groups,
-          status: state.status ?? 'idle',
+          status,
           error: state.error ?? null,
         })
       }
@@ -610,17 +622,64 @@ export function apply(ctx) {
       syncDirectory()
       void directory.load?.().then(syncDirectory).catch(syncDirectory)
     }
-    const connection = ctx.get?.('connection')
-    if (connection?.api?.sessions?.models !== undefined) {
-      void connection.api.sessions.models({ sessionId }).then(response => {
-        if (!response?.result?.ok) return
-        const available = []
-        for (const group of response.result.value?.groups ?? []) {
-          for (const model of group.models ?? []) available.push({ provider: group.id, model: model.id })
-        }
-        source.update({ ...source.getSnapshot(), available })
-      }).catch(() => {})
+    // A ModelDirectory deliberately waits for both the global catalog and a
+    // session projection. A restored session can have the catalog ready while
+    // its projection is still catching up, which left this GAL-only picker on
+    // "loading" even though Harness' native picker already had every model.
+    // Read the same official Host catalog directly as a display fallback;
+    // selection still goes through ModelDirectory below.
+    // `remote.session` may be injected a tick after the root `remote` facade
+    // during browser authentication. Read both faces and retry a short,
+    // bounded sequence so a transient bootstrap race cannot leave GAL stuck
+    // on “正在读取模型…”.
+    let remote
+    let remoteSession
+    try {
+      remote = ctx.get?.('remote') ?? ctx.remote
+      remoteSession = ctx.get?.('remote.session') ?? remote?.session ?? ctx.remote?.session
+    } catch {
+      remote = undefined
+      remoteSession = undefined
     }
+    const catalogDelays = [0, 200, 500, 1000, 2000]
+    const loadOfficialCatalog = async () => {
+      for (const delay of catalogDelays) {
+        if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay))
+        const sessionApi = remoteSession ?? remote?.session ?? ctx.remote?.session
+        if (typeof sessionApi?.modelCatalog !== 'function') continue
+        try {
+          const response = await sessionApi.modelCatalog()
+          if (!response?.ok) throw new Error(response?.error?.message ?? '模型目录读取失败')
+          const previous = source.getSnapshot()
+          const fallback = catalogSnapshot(response.value, previous)
+          let projected
+          try {
+            const sessions = ctx.get?.('sessions') ?? ctx.sessions
+            projected = sessions?.binding?.(sessionId)?.session?.projections?.faceOf?.('modelSelection')?.getSnapshot?.()
+          } catch {
+            projected = undefined
+          }
+          source.update({
+            ...previous,
+            ...fallback,
+            current: projected?.next ?? fallback.current,
+            status: 'ready',
+            error: null,
+          })
+          return
+        } catch (error) {
+          if (delay === catalogDelays[catalogDelays.length - 1]) {
+            const previous = source.getSnapshot()
+            source.update({
+              ...previous,
+              status: previous.available.length > 0 ? 'ready' : 'error',
+              error: previous.available.length > 0 ? null : String(error?.message ?? error),
+            })
+          }
+        }
+      }
+    }
+    void loadOfficialCatalog()
     return source
   }
 
@@ -634,12 +693,32 @@ export function apply(ctx) {
       },
       select: async selection => {
         const active = routerDirectories.get(key)
-        if (active === undefined || typeof active.select !== 'function') return false
+        if (active === undefined || typeof active.select !== 'function') {
+          try {
+            const remote = ctx.get?.('remote') ?? ctx.remote
+            return await selectModelThroughRemote(remote, sessionId, selection)
+          } catch {
+            return false
+          }
+        }
         try {
           await active.select(selection)
           return true
         } catch {
           return false
+        }
+      },
+      // Mode switches initiated while an image is attached bypass the
+      // composer command admission path. The command carries no image bytes,
+      // so the attachment and any in-progress draft stay intact.
+      command: async line => {
+        try {
+          const sessions = ctx.get?.('sessions') ?? ctx.sessions
+          const session = sessions?.binding?.(sessionId)?.session
+          if (typeof session?.command !== 'function') return { ok: false, error: { code: 'unavailable', message: '会话命令通道不可用' } }
+          return await session.command(line)
+        } catch (error) {
+          return { ok: false, error: { code: 'command-failed', message: String(error?.message ?? error) } }
         }
       },
       open: id => {

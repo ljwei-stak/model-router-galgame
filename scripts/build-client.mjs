@@ -79,6 +79,9 @@ export function generate({ check = false } = {}) {
     '--jsx-fragment=React.Fragment', '--loader:.png=dataurl', '--loader:.woff2=dataurl', '--loader:.woff=dataurl', '--loader:.ttf=dataurl',
     '--outfile=' + tempOut,
   ]
+  // The source checkout is a sibling of this plugin, so pnpm's workspace
+  // symlink is not visible from the plugin directory. Use the built host
+  // package when it is present; published installs resolve the package normally.
   try {
     if (statSync(UI_PRIMITIVES).isFile()) {
       args.splice(args.length - 1, 0, '--alias:@deepseek-ai/dsh-client-ui-primitives=' + UI_PRIMITIVES)

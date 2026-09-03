@@ -27,15 +27,24 @@ function browserStorage() {
 }
 
 /** 发送玩家输入：先提交最新草稿到宿主，再走原生输入机。 */
-function useSend(inputActions, draft, setDraft, hasImages, syncDraft) {
+function useSend(inputActions, draft, setDraft, hasImages, syncDraft, onRouterCommand) {
   return useCallback(() => {
     const text = draft.trim()
     if (text === '' && !hasImages) return
+    const routerMode = /^\/router\s+mode\s+(single|collective)\s*$/i.exec(text)?.[1]?.toLowerCase()
+    if (routerMode !== undefined && hasImages && typeof onRouterCommand === 'function') {
+      // A mode command does not need the image. Execute it through the
+      // session face so the normal command gate cannot reject the submission
+      // and, more importantly, so the image remains attached for the actual
+      // question that follows.
+      onRouterCommand(routerMode, draft, true)
+      return
+    }
     syncDraft(draft)
     inputActions.submit()
     setDraft('')
     syncDraft('')
-  }, [draft, hasImages, inputActions, setDraft, syncDraft])
+  }, [draft, hasImages, inputActions, onRouterCommand, setDraft, syncDraft])
 }
 
 const DOCUMENT_EXTENSIONS = /\.(?:md|markdown|txt|text|csv|tsv|json|jsonl|xml|html?|css|js|jsx|ts|tsx|py|java|c|cc|cpp|h|hpp|rs|go|rb|php|sql|yaml|yml|toml|ini|cfg|log)$/i
@@ -380,6 +389,7 @@ function AttachmentPicker({ inputActions, inputState, attachmentApi, draft, setD
         </span>
       ))}
       {notice !== '' && <span className="gv-attachment-notice" role="status">{notice}</span>}
+      {imageAttachments.length > 0 && <span className="gv-attachment-status" role="status" title="图片会在发送前转换为结构化文字，纯文本模型也可据此回答">ModLens 已启用 · 发送前分析图片</span>}
     </div>
   )
 }
@@ -951,15 +961,37 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
     }
   }, [running, type.done, hasNextPage, pageIndex, skipTyping])
   const hasImages = Array.isArray(inputState?.imageIds) && inputState.imageIds.length > 0
-  const send = useSend(inputActions, draft, updateDraft, hasImages, syncDraft)
-  const handleRouterMode = useCallback(nextMode => {
+  const handleRouterModeCommand = useCallback((nextMode, sourceDraft = '', clearDraft = false) => {
     const normalized = nextMode === 'single' ? 'single' : 'collective'
     const command = '/router mode ' + normalized
     setRouterMode(normalized)
+    if (hasImages && typeof routerActions?.command === 'function') {
+      if (clearDraft) {
+        updateDraft('')
+        syncDraft('')
+      }
+      void routerActions.command(command).then(result => {
+        if (result?.ok && result.value?.matched !== false) return
+        if (clearDraft) {
+          updateDraft(sourceDraft)
+          syncDraft(sourceDraft)
+        }
+      }).catch(() => {
+        if (clearDraft) {
+          updateDraft(sourceDraft)
+          syncDraft(sourceDraft)
+        }
+      })
+      return
+    }
     updateDraft(command)
     syncDraft(command)
     inputActions.submit()
-  }, [inputActions, syncDraft, updateDraft])
+  }, [hasImages, inputActions, routerActions, syncDraft, updateDraft])
+  const send = useSend(inputActions, draft, updateDraft, hasImages, syncDraft, handleRouterModeCommand)
+  const handleRouterMode = useCallback(nextMode => {
+    handleRouterModeCommand(nextMode, '', false)
+  }, [handleRouterModeCommand])
 
   // 透明功能按钮：历史/自动/快进/设置（原底部控制栏已移除，功能由场景内按钮承载）。
   const handleAction = useCallback(action => {

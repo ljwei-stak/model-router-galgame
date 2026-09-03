@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { SafeMarkdownText } from './SafeMarkdownText.jsx'
 import { characterForModel } from './characters.mjs'
 import { shouldRenderMarkdown } from './transcript.mjs'
@@ -25,6 +25,12 @@ export function ModelPicker({ mode, snapshot, actions, onMode, selectedRoute }) 
     if (rows.length > 0) return rows
     return (snapshot?.available ?? []).map(route => ({ provider: route.provider, model: route.model, label: route.model }))
   }, [groups, snapshot?.available])
+  useEffect(() => {
+    // The directory normally preloads at session mount. This retry covers a
+    // slow connection or a view mounted during an adapter refresh without
+    // making the user focus the native select first.
+    if (mode === 'single' && groups.length === 0 && snapshot?.status === 'idle') actions?.load?.()
+  }, [actions, groups.length, mode, snapshot?.status])
   const current = snapshot?.current ?? selectedRoute ?? null
   const value = current ? `${current.provider}\u0000${current.model}` : ''
   return (

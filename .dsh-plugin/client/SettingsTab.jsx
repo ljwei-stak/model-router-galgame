@@ -305,7 +305,7 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingA
         <div className="gvsv-update-head">
           <div>
             <h3 id="gvsv-update-title">项目更新</h3>
-            <p>更新固定来自 ljwei-stak/model-router-galgame 的稳定 Release，不会使用上游仓库或第三方下载地址。</p>
+            <p>更新固定来自 ljwei-stak/deepseek-harness 的稳定 Release，不会使用上游仓库或第三方下载地址。</p>
           </div>
           <button type="button" className="gvsv-link" onClick={() => updateApi?.openProject?.()}>项目主页</button>
         </div>

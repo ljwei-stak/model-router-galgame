@@ -3,3 +3,11 @@
 - insert:
     - id: model-router-galgame
       name: model-router-galgame
+
+# ModLens consumes the durable image blocks on the Host pre-step. Leave the
+# describe-image fallback available for explicit use, but do not rewrite every
+# text-model upload into a markdown tool reference before ModLens can read it.
+- id: web-ui-describe-image
+  name: '@linxin666/dsh-tool-describe-image'
+  config:
+    interceptImageSend: false
