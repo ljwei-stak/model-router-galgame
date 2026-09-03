@@ -49,22 +49,27 @@ The second command should print `https://registry.npmjs.org/`.
 3. Install into the profile you use:
 
 ```powershell
+# Query the newest version that is actually visible on npm.
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+$routerVersion
+
 # Web profile
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 
 # Desktop profile (use this when the desktop application runs the desktop profile)
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh plugin --profile desktop add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
-If npm still reports `No matching version found`, the registry has not received
-that release yet. Use the latest version shown by
-`npm view @ljwei-stak/model-router-galgame version` (currently `0.4.10` on the
-public registry), or wait until `0.4.11` finishes publishing.
+The command currently returns `0.4.10` on the public registry. When a newer
+release is published, the same commands automatically use it. If npm reports
+`No matching version found`, do not guess a version: rerun the query and use the
+version it prints.
 
 If you do not want to change the global pnpm registry, add this option to the `add` command instead:
 
 ```powershell
-pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org @ljwei-stak/model-router-galgame@0.4.11
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
 4. Verify that the router and its ModLens dependency are present:
@@ -87,7 +92,7 @@ then reinstall the router:
 
 ```powershell
 pnpm dsh plugin --profile web remove @liustack/modlens
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
 5. Stop any already-running DSH process, then start the selected profile:
@@ -98,7 +103,14 @@ pnpm dsh web
 pnpm dsh --profile desktop
 ```
 
-Do not start a second process on the same port. If port 3080 is already in use, close the existing DSH process or start the web profile with `pnpm dsh web --port 3081`.
+Do not start a second process on the same profile. If port 3080 is already in
+use, or startup says `task-board ledger is already owned by process ...`, close
+the existing DSH process before retrying. You can use another port only after
+the old process has released its profile lock:
+
+```powershell
+pnpm dsh web --no-open --port 3081
+```
 
 ### Verify ModLens
 
@@ -113,13 +125,22 @@ Configure the vision provider in the DSH settings page or in `C:\Users\<your-use
 
 ### Update
 
-Pin an exact release when you want reproducible deployments:
+To install the newest version visible on npm:
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
-Or ask pnpm for the latest published release:
+For a reproducible deployment, replace `$routerVersion` with a concrete version
+that you have verified with `npm view` (for example `0.4.10`):
+
+```powershell
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+```
+
+You can also ask pnpm to update an already-installed package within its declared
+version range:
 
 ```powershell
 pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
@@ -136,13 +157,15 @@ Stop DSH, remove the standalone ModLens dependency, and add the router again:
 ```powershell
 cd F:\DeepSeek_harness\DSH-Desktop
 pnpm dsh plugin --profile web remove @liustack/modlens
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
 ```
 
 The dump should show one `modlens` row and one `model-router-galgame` row. If the
-error is `EADDRINUSE` on port 3080, an old
-DSH process is still running; close it or choose another port:
+error is `EADDRINUSE` on port 3080, or `task-board ledger is already owned by
+process ...`, an old DSH process is still running; close that process before
+starting another instance, or choose another port:
 
 ```powershell
 pnpm dsh web --no-open --port 3081

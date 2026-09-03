@@ -49,21 +49,26 @@ pnpm config get registry
 3. 安装到你实际使用的 profile：
 
 ```powershell
+# 查询 npm registry 当前实际可见的最新版本
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+$routerVersion
+
 # Web profile
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 
 # Desktop profile（桌面程序使用 desktop profile 时执行）
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh plugin --profile desktop add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
-如果 npm 提示 `No matching version found`，说明 registry 还没有同步该版本。
-先执行 `npm view @ljwei-stak/model-router-galgame version`，使用它显示的最新版本
-（当前公开 registry 为 `0.4.10`），或等待 `0.4.11` 发布完成。
+当前公开 registry 返回的是 `0.4.10`。以后发布新版本时，同样的命令会自动使用
+新版本。如果 npm 提示 `No matching version found`，不要猜版本号；重新执行查询，
+并使用它实际输出的版本。
 
 如果不想修改全局 pnpm 源，可以只在安装命令中指定：
 
 ```powershell
-pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org @ljwei-stak/model-router-galgame@0.4.11
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
 4. 检查路由器和它的 ModLens 依赖是否已加入 profile：
@@ -85,7 +90,7 @@ bundle。如果以前在同一个 profile 中单独安装过 ModLens，先删除
 
 ```powershell
 pnpm dsh plugin --profile web remove @liustack/modlens
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
 5. 关闭已经运行的 DSH，再启动对应 profile：
@@ -96,7 +101,13 @@ pnpm dsh web
 pnpm dsh --profile desktop
 ```
 
-不要在 3080 端口上重复启动两个 DSH 进程。如果出现 `EADDRINUSE`，先关闭旧进程，或者使用 `pnpm dsh web --port 3081`。
+不要在同一个 profile 上重复启动两个 DSH 进程。如果出现 `EADDRINUSE`，或启动时
+提示 `task-board ledger is already owned by process ...`，先关闭旧 DSH 进程再重试。
+只有旧进程释放 profile 锁后，才适合换端口启动：
+
+```powershell
+pnpm dsh web --no-open --port 3081
+```
 
 ### 检查 ModLens
 
@@ -110,13 +121,21 @@ pnpm dsh plugin --profile web exec modlens doctor
 
 ### 更新插件
 
-需要固定版本时：
+安装 npm 当前可见的最新版本：
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
-希望直接更新到 npm 最新版本时：
+如果需要可复现部署，请把 `$routerVersion` 替换为通过 `npm view` 确认过的具体版本号
+（例如 `0.4.10`）：
+
+```powershell
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+```
+
+已经安装过插件时，也可以让 pnpm 在当前版本范围内更新：
 
 ```powershell
 pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
@@ -133,13 +152,14 @@ pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
 ```powershell
 cd F:\DeepSeek_harness\DSH-Desktop
 pnpm dsh plugin --profile web remove @liustack/modlens
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+$routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
 ```
 
 输出应只显示一条 `modlens` 行和一条 `model-router-galgame` 行。如果报
-`EADDRINUSE` 且端口为 3080，说明旧的 DSH
-进程仍在运行；关闭旧进程，或换一个端口启动：
+`EADDRINUSE` 且端口为 3080，或报 `task-board ledger is already owned by process ...`，
+说明旧的 DSH 进程仍在运行；先关闭旧进程，或换一个端口启动：
 
 ```powershell
 pnpm dsh web --no-open --port 3081
