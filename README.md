@@ -204,30 +204,290 @@ If no model is available, native model selection remains intact and the conversa
 
 ## Mathematical routing model
 
-For a request `x`, the router derives a task type `t`, complexity band `c`, work-package set `I`, and candidate set `M`. Quality comes from a LiveBench task-category score (then overall, then the experimental baseline); prices come from user overrides or the baseline catalog.
+This section describes the implementation in the form of the research framework in
+`RESEARCH_PAPER_FRAMEWORK.md`. The production router and the offline experiment
+plugin share the same objective, quality floors, cost model, and fallback semantics.
+The production implementation adds Pareto pruning and bounded global search so that
+the result is not merely a sequence of unrelated local choices.
 
-For work package `i` and model `m`:
+### 1. Problem definition
 
-```text
-U(i,m) = wq(c) Q(i,m) + wc(c) C(m) + wl(c) (1 - L(m))
-         + ws(c) S(i,m) - wr(c) R(m)
-         - lambda * 1[m is already used]
-         - kappa * max(0, F(i) - Q(i,m))
-```
-
-`F(i)` is the quality floor. Candidates satisfying `Q(i,m) >= F(i)` form the feasible set. A budget `B` is a secondary hard constraint: if the first utility assignment exceeds `B`, lower-criticality stages are replaced by the cheapest feasible candidates until the budget is met or no valid replacement remains. Synthesis prefers DeepSeek V4 Pro and falls back deterministically when unavailable.
-
-The algorithm is wired into the Host request path: `index.mjs` calls `buildPlan` in collective mode and executes the planned stages; single-session mode preserves the explicitly selected model instead of applying the collective override. `router.test.mjs` covers complexity, mixed-domain decomposition, LiveBench and price overrides, and budget fallback; `collaboration.test.mjs` covers multi-stage execution and final synthesis.
-
-With user prices `p_in(m), p_out(m)` and estimated token counts:
+For a request `x`, the router constructs:
 
 ```text
-Cost(i,m) = (n_in(i) * p_in(m) + n_out(i) * p_out(m)) / 10^6
-TotalCost = sum_i Cost(i, assign(i))
-Saving = max(0, 1 - TotalCost / BaselineStrongCost)
+t       task type: general, code, math, research, writing, summarization, vision
+c       complexity band: simple, balanced, or complex
+I       ordered work-package set
+M       discovered provider/model routes
+F(i)    quality floor for work package i
+B       optional per-request budget in USD
 ```
 
-Higher complexity increases the weight of quality, specialty, and criticality constraints; simple requests favor low cost and latency. The implementation is a bounded quality-constrained greedy solver with `O(|I||M| log |M|)` plan generation, suitable for interactive desktop use.
+The assignment is `pi: I -> M`. The primary objective is to maximize multi-objective
+utility while satisfying quality constraints. When a budget is configured, it is a
+hard secondary constraint:
+
+```text
+maximize   Sum_i U(i, pi(i))
+subject to Q(i, pi(i)) >= F(i), for every feasible work package i
+           Sum_i Cost(i, pi(i)) <= B
+```
+
+If no model satisfies a particular floor, the router chooses the highest-quality
+available fallback and records `constraintRelaxed: true`; it never silently claims
+that an unavailable constraint was satisfied.
+
+### 2. Request analysis and work-package construction
+
+Task classification is signal based and deterministic. The classifier counts explicit
+markers for code, mathematics, research, writing, summarization, and vision, then
+uses the strongest signal as the primary type while retaining all detected types for
+complex-task decomposition.
+
+Complexity is a bounded score assembled from text length, list/requirement density,
+domain markers, code/reasoning markers, and vision markers. The bands are:
+
+```text
+simple       0.00 <= complexity < 0.34
+balanced     0.34 <= complexity < 0.66
+complex      0.66 <= complexity <= 1.00
+```
+
+Simple and balanced requests use one execution package. A complex request is expanded
+into a small DAG-like sequence:
+
+```text
+analysis -> domain execution packages -> optional verification -> synthesis
+```
+
+Every package has an id, type, purpose, criticality, quality floor, and `dependsOn`
+list. The default floors are `0.75`, `0.78`, and `0.82` for simple, balanced, and
+complex work. A complex synthesis package has a minimum floor of `0.84`; critical
+non-synthesis packages receive a small additional floor based on criticality.
+
+### 3. Model quality, specialty, cost, and risk
+
+For route `m` and task type `t`, quality is resolved in this order:
+
+```text
+Q(m,t) = LiveBench category score
+       or LiveBench overall score
+       or checked-in catalog quality baseline
+```
+
+Specialty `S(m,t)` is `1.0` for an explicit catalog specialty, `0.58` for a general
+task, and a deterministic partial match for related domains. Risk `R(m)` and latency
+`L(m)` are normalized catalog values; user pricing overrides only affect cost.
+
+With input/output prices in USD per one million tokens, cache-aware cost is:
+
+```text
+Cost(i,m) =
+  ((n_in - n_cache_read - n_cache_write) * p_in
+   + n_cache_read * p_cache_read
+   + n_cache_write * p_cache_write
+   + n_out * p_out) / 10^6
+```
+
+The cache ratios are clamped to `[0,1]` and write ratio cannot overlap the read ratio.
+If no cache ratio is configured, ordinary input pricing is used.
+
+### 4. Multi-objective utility
+
+The implementation uses a normalized cost score `C_norm = 1 - effective_price /
+max_catalog_price`, so a lower price receives a larger utility contribution. For a
+work package `i` and candidate `m`:
+
+```text
+U(i,m) = wq(c) * Q(i,m)
+       + wc(c) * C_norm(m)
+       + wl(c) * (1 - L(m))
+       + ws(c) * S(i,m)
+       - wr(c) * R(m)
+       - lambda * I[route m was already used]
+       - kappa * max(0, F(i) - Q(i,m))
+       + synthesis_bonus(i,m)
+```
+
+The default weight vectors are:
+
+| Complexity | Quality | Cost | Latency | Specialty | Risk |
+|---|---:|---:|---:|---:|---:|
+| simple | 0.30 | 0.50 | 0.14 | 0.04 | 0.02 |
+| balanced | 0.45 | 0.30 | 0.10 | 0.10 | 0.05 |
+| complex | 0.55 | 0.16 | 0.06 | 0.16 | 0.07 |
+
+For synthesis, the quality-oriented vector is `0.70/0.10/0.04/0.10/0.06`, and
+DeepSeek V4 Pro receives a small deterministic preference bonus when present. The
+bonus is soft: if that route is unavailable, the normal feasible ranking remains in
+force. Reusing a route costs `0.08` utility; changing routes across a dependency
+boundary costs `0.015` in the global assignment search.
+
+### 5. Production algorithm: Pareto-pruned constrained beam assignment
+
+The current Host router is a bounded global solver with five stages.
+
+#### 5.1 Candidate discovery and quality filtering
+
+For each work package, routes below its quality floor are removed when at least one
+qualified route exists. If none exists, at most the three highest-quality routes are
+retained and the package is marked as relaxed. This makes constraint failure visible
+and bounds the work on large model catalogs.
+
+#### 5.2 Pareto pruning
+
+Candidate `a` dominates candidate `b` for the same package when it is no worse in all
+five dimensions and strictly better in at least one:
+
+```text
+Q(a) >= Q(b), Cost(a) <= Cost(b), L(a) <= L(b),
+S(a) >= S(b), R(a) <= R(b)
+```
+
+Dominated candidates cannot improve quality, cost, latency, specialty, or risk. The
+router keeps the Pareto frontier plus three anchors: the cheapest candidate, the
+highest-utility candidate, and the highest-quality candidate. The per-package pool is
+limited to 12 routes.
+
+#### 5.3 Dependency-aware beam search
+
+Each beam state stores the partial assignment, route selected for every completed
+package, total cost, utility, number of dependency handoffs, and accumulated quality
+shortfall. States are expanded in package order. A child receives the candidate
+utility minus `0.015` for every dependency edge that crosses to a different route.
+The beam width is 256. Ties are resolved by quality shortfall, utility, cost,
+handoffs, and finally lexical provider/model order, making repeated plans stable.
+
+The search first minimizes constraint violations, then quality shortfall, and then
+maximizes utility. With a budget, suffix minimum-cost bounds prune partial states that
+cannot possibly fit the remaining budget.
+
+#### 5.4 Budget strategy
+
+The router evaluates three plans:
+
+1. an unconstrained utility plan;
+2. a utility plan that must fit `B`;
+3. when (2) is infeasible, a minimum-cost plan that still preserves every available
+   quality floor.
+
+If no floor-preserving plan exists, the least-cost best-quality fallback is returned,
+`budgetExceeded` and/or `constraintRelaxed` are exposed in the audit record, and the
+UI explains why the target could not be met. This is a global replacement strategy,
+not a greedy “replace the last stage” rule.
+
+#### 5.5 Production pseudocode
+
+```text
+BuildPlan(x, M, B):
+  (t, c, I) <- AnalyzeRequest(x)
+  for i in I:
+      P_i <- FeasibleCandidates(i, M)
+      P_i <- ParetoPrune(P_i) + {cheapest, best-utility, best-quality}
+  plan <- BeamAssign(I, P, B = infinity)
+  if B > 0:
+      budgetPlan <- BeamAssign(I, P, B)
+      plan <- budgetPlan if feasible
+              else BeamAssign(I, P, minimize total cost)
+  return auditable assignments, costs, floors, handoffs, and fallback flags
+```
+
+### 6. Experiment algorithms
+
+The `experiment-plugin` contains standalone implementations used by the six paper
+experiments. They are intentionally deterministic and use the same model schema as
+the Host router.
+
+**QCG-Router (quality-constrained greedy / Pareto variant)**
+
+QCG evaluates every model in `O(|M|)`, predicts quality from the baseline score plus a
+specialty bonus, removes candidates below `F(i)`, computes the five-objective utility,
+and selects the first Pareto/utility candidate. If the feasible set is empty, it
+returns the highest-quality fallback with `constraintRelaxed: true`.
+
+**AMO-Router (adaptive multi-objective routing)**
+
+AMO starts from the paper's complexity-specific weights. After observing actual cost
+and quality it computes:
+
+```text
+e_cost = clamp((actual_cost - target_cost) / max(target_cost, eps))
+v_q    = max(0, quality_floor - actual_quality)
+```
+
+The feedback is exponentially smoothed (`0.10`). Positive cost error increases cost
+pressure; a quality violation increases quality and specialty pressure. Weights are
+projected back to the positive simplex after every update, so they remain finite,
+positive, and sum to one. This fixes the sign ambiguity that could previously reduce
+cost pressure when observed cost was too high.
+
+**DAG-Assign (dependency-aware task allocation)**
+
+DAG-Assign uses Kahn topological sorting, rejects unknown edge endpoints and cycles,
+and computes criticality as the number of unique descendants plus `100` for a
+synthesis node. For every node it keeps the QCG Pareto candidates, then runs a bounded
+beam assignment with dependency handoff penalties, a synthesis quality bonus, and a
+criticality bonus. Budget pruning uses suffix lower bounds; if the budget is
+impossible, the result explicitly reports `budgetFeasible: false` instead of silently
+assigning a below-floor model.
+
+### 7. Complexity and correctness properties
+
+Let `N = |M|`, `K <= 12` be the retained candidate pool, `P = |I|`, and `W = 256` be
+the beam width. The current implementation has the following bounded worst-case
+costs:
+
+| Component | Time complexity | Space complexity |
+|---|---:|---:|
+| Candidate scoring | `O(PN)` | `O(PN)` |
+| Pairwise Pareto pruning | `O(PN^2)` | `O(PN)` |
+| Beam assignment | `O(PWK)` | `O(WK + P)` |
+| DAG topological sort | `O(|V| + |E|)` | `O(|V| + |E|)` |
+
+The constants are small for desktop catalogs, and all loops are bounded by the
+discovered routes, 12 candidates per package, and beam width 256.
+
+The following invariants are enforced and exposed in the result:
+
+1. **Quality guarantee**: if a qualified candidate exists for a package, every normal
+   assignment considered by the solver satisfies `Q >= F`.
+2. **Budget guarantee**: a plan marked `budgetFeasible: true` has estimated total cost
+   no greater than `B`, subject to the configured token and price estimates.
+3. **Dependency guarantee**: every collaboration stage is emitted in topological
+   order, and handoff count is recorded.
+4. **Determinism**: equal scores use stable cost and route-id tie breakers; repeated
+   input/catalog/settings produce the same plan.
+5. **Graceful degradation**: no models, failed providers, stale LiveBench data, and
+   unsatisfied floors are represented as explicit fallback metadata rather than
+   blocking the native Harness request path.
+
+The beam solver is deliberately bounded. It provides an auditable, deterministic
+near-optimal heuristic for interactive desktop routing, not a formal global-optimum
+guarantee for arbitrary DAGs. A larger beam improves search coverage at the cost of
+latency; Pareto pruning and suffix lower bounds keep the default `W = 256` practical.
+
+### 8. Cost and audit outputs
+
+For every plan the router reports:
+
+```text
+TotalCost       = Sum_i Cost(i, assign(i))
+BaselineCost    = cost of the strongest available model per package
+EstimatedSaving = max(0, 1 - TotalCost / BaselineCost)
+```
+
+The plan also contains per-stage token estimates, cache read/write tokens, predicted
+quality, quality floor, provider/model, Pareto-pruned count, beam width, handoff count,
+budget feasibility, and whether constraints were relaxed. `/router plan` and the GAL
+analysis panel display these audit fields; neither exposes private model chain of
+thought.
+
+The algorithm is wired into the Host request path: `index.mjs` calls `buildPlan` in
+collective mode and executes the planned stages. Single-session mode preserves the
+explicitly selected model instead of applying the collective override. The regression
+suite covers complexity, mixed-domain decomposition, LiveBench and price overrides,
+budget behavior, Pareto pruning, AMO feedback direction, DAG ordering, multi-stage
+execution, and final synthesis.
 
 ## OpenCode Zen settings
 
