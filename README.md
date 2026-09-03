@@ -231,7 +231,7 @@ $$
 \begin{aligned}
 \text{maximize}\quad & \sum_{i \in I} U(i,\pi(i)) \\
 \text{subject to}\quad & Q(i,\pi(i)) \ge F(i), && \forall i \in I \\
-& \sum_{i \in I} \operatorname{Cost}(i,\pi(i)) \le B
+& \sum_{i \in I} \mathrm{Cost}(i,\pi(i)) \le B
 \end{aligned}
 $$
 
@@ -251,9 +251,9 @@ domain markers, code/reasoning markers, and vision markers. The bands are:
 
 $$
 \begin{aligned}
-\text{simple:}\quad & 0.00 \le \operatorname{complexity} < 0.34 \\
-\text{balanced:}\quad & 0.34 \le \operatorname{complexity} < 0.66 \\
-\text{complex:}\quad & 0.66 \le \operatorname{complexity} \le 1.00
+\text{simple:}\quad & 0.00 \le \mathrm{complexity} < 0.34 \\
+\text{balanced:}\quad & 0.34 \le \mathrm{complexity} < 0.66 \\
+\text{complex:}\quad & 0.66 \le \mathrm{complexity} \le 1.00
 \end{aligned}
 $$
 
@@ -289,7 +289,7 @@ task, and a deterministic partial match for related domains. Risk `R(m)` and lat
 With input/output prices in USD per one million tokens, cache-aware cost is:
 
 $$
-\operatorname{Cost}(i,m)=
+\mathrm{Cost}(i,m)=
 \frac{(n_{in}-n_{cache\_read}-n_{cache\_write})p_{in}
       +n_{cache\_read}p_{cache\_read}
       +n_{cache\_write}p_{cache\_write}
@@ -312,7 +312,7 @@ U(i,m)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m)+w_l(c)(1-L(m))\\
 &+w_s(c)S(i,m)-w_r(c)R(m)\\
 &-\lambda\,\mathbb{1}[m\text{ already used}]
 -\kappa\max(0,F(i)-Q(i,m))\\
-&+\operatorname{synthesis\_bonus}(i,m)
+&+\mathrm{synthesis\_bonus}(i,m)
 \end{aligned}
 $$
 
@@ -347,7 +347,7 @@ Candidate `a` dominates candidate `b` for the same package when it is no worse i
 five dimensions and strictly better in at least one:
 
 $$
-Q(a)\ge Q(b),\quad \operatorname{Cost}(a)\le\operatorname{Cost}(b),\quad L(a)\le L(b),\quad
+Q(a)\ge Q(b),\quad \mathrm{Cost}(a)\le\mathrm{Cost}(b),\quad L(a)\le L(b),\quad
 S(a)\ge S(b),\quad R(a)\le R(b)
 $$
 
@@ -418,9 +418,9 @@ AMO starts from the paper's complexity-specific weights. After observing actual 
 and quality it computes:
 
 $$
-e_{cost}=\operatorname{clamp}\!\left(\frac{\operatorname{actual\_cost}-\operatorname{target\_cost}}
-{\max(\operatorname{target\_cost},\varepsilon)}\right),\qquad
-v_q=\max(0,\operatorname{quality\_floor}-\operatorname{actual\_quality})
+e_{cost}=\mathrm{clamp}\!\left(\frac{\mathrm{actual\_cost}-\mathrm{target\_cost}}
+ {\max(\mathrm{target\_cost},\varepsilon)}\right),\qquad
+v_q=\max(0,\mathrm{quality\_floor}-\mathrm{actual\_quality})
 $$
 
 The feedback is exponentially smoothed (`0.10`). Positive cost error increases cost
@@ -481,9 +481,9 @@ For every plan the router reports:
 
 $$
 \begin{aligned}
-\operatorname{TotalCost}&=\sum_{i\in I}\operatorname{Cost}(i,\operatorname{assign}(i)),\\
-\operatorname{BaselineCost}&=\text{cost of the strongest available model per package},\\
-\operatorname{EstimatedSaving}&=\max\!\left(0,1-\frac{\operatorname{TotalCost}}{\operatorname{BaselineCost}}\right)
+\mathrm{TotalCost}&=\sum_{i\in I}\mathrm{Cost}(i,\mathrm{assign}(i)),\\
+\mathrm{BaselineCost}&=\text{cost of the strongest available model per package},\\
+\mathrm{EstimatedSaving}&=\max\!\left(0,1-\frac{\mathrm{TotalCost}}{\mathrm{BaselineCost}}\right)
 \end{aligned}
 $$
 

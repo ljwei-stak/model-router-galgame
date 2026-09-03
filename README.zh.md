@@ -222,7 +222,7 @@ $$
 \begin{aligned}
 \text{最大化}\quad & \sum_{i \in I} U(i,\pi(i)) \\
 \text{约束}\quad & Q(i,\pi(i)) \ge F(i), && \forall i \in I \\
-& \sum_{i \in I} \operatorname{Cost}(i,\pi(i)) \le B
+& \sum_{i \in I} \mathrm{Cost}(i,\pi(i)) \le B
 \end{aligned}
 $$
 
@@ -239,9 +239,9 @@ $$
 
 $$
 \begin{aligned}
-\text{simple:}\quad & 0.00 \le \operatorname{complexity} < 0.34 \\
-\text{balanced:}\quad & 0.34 \le \operatorname{complexity} < 0.66 \\
-\text{complex:}\quad & 0.66 \le \operatorname{complexity} \le 1.00
+\text{simple:}\quad & 0.00 \le \mathrm{complexity} < 0.34 \\
+\text{balanced:}\quad & 0.34 \le \mathrm{complexity} < 0.66 \\
+\text{complex:}\quad & 0.66 \le \mathrm{complexity} \le 1.00
 \end{aligned}
 $$
 
@@ -275,7 +275,7 @@ $$
 输入/输出价格单位为 USD/百万 token，支持 prompt cache 的费用公式为：
 
 $$
-\operatorname{Cost}(i,m)=
+\mathrm{Cost}(i,m)=
 \frac{(n_{in}-n_{cache\_read}-n_{cache\_write})p_{in}
       +n_{cache\_read}p_{cache\_read}
       +n_{cache\_write}p_{cache\_write}
@@ -297,7 +297,7 @@ U(i,m)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m)+w_l(c)(1-L(m))\\
 &+w_s(c)S(i,m)-w_r(c)R(m)\\
 &-\lambda\,\mathbb{1}[m\text{ 已经使用}]
 -\kappa\max(0,F(i)-Q(i,m))\\
-&+\operatorname{synthesis\_bonus}(i,m)
+&+\mathrm{synthesis\_bonus}(i,m)
 \end{aligned}
 $$
 
@@ -330,7 +330,7 @@ synthesis 使用质量优先的 `0.70/0.10/0.04/0.10/0.06` 权重；存在 DeepS
 严格更好：
 
 $$
-Q(a)\ge Q(b),\quad \operatorname{Cost}(a)\le\operatorname{Cost}(b),\quad L(a)\le L(b),\quad
+Q(a)\ge Q(b),\quad \mathrm{Cost}(a)\le\mathrm{Cost}(b),\quad L(a)\le L(b),\quad
 S(a)\ge S(b),\quad R(a)\le R(b)
 $$
 
@@ -392,9 +392,9 @@ QCG 对每个模型进行质量、费用、延迟、专长和风险评估；质�
 AMO 从论文规定的三组复杂度权重开始。得到真实费用和质量后计算：
 
 $$
-e_{cost}=\operatorname{clamp}\!\left(\frac{\operatorname{actual\_cost}-\operatorname{target\_cost}}
-{\max(\operatorname{target\_cost},\varepsilon)}\right),\qquad
-v_q=\max(0,\operatorname{quality\_floor}-\operatorname{actual\_quality})
+e_{cost}=\mathrm{clamp}\!\left(\frac{\mathrm{actual\_cost}-\mathrm{target\_cost}}
+ {\max(\mathrm{target\_cost},\varepsilon)}\right),\qquad
+v_q=\max(0,\mathrm{quality\_floor}-\mathrm{actual\_quality})
 $$
 
 反馈使用 `0.10` 的指数平滑。实际费用高于目标时提高成本目标权重；质量违反时提高质量
@@ -445,9 +445,9 @@ Beam 求解器是有界的。它为桌面端交互式路由提供可审计、确
 
 $$
 \begin{aligned}
-\operatorname{TotalCost}&=\sum_{i\in I}\operatorname{Cost}(i,\operatorname{assign}(i)),\\
-\operatorname{BaselineCost}&=\text{每个工作包使用当前可用最高质量模型的费用},\\
-\operatorname{EstimatedSaving}&=\max\!\left(0,1-\frac{\operatorname{TotalCost}}{\operatorname{BaselineCost}}\right)
+\mathrm{TotalCost}&=\sum_{i\in I}\mathrm{Cost}(i,\mathrm{assign}(i)),\\
+\mathrm{BaselineCost}&=\text{每个工作包使用当前可用最高质量模型的费用},\\
+\mathrm{EstimatedSaving}&=\max\!\left(0,1-\frac{\mathrm{TotalCost}}{\mathrm{BaselineCost}}\right)
 \end{aligned}
 $$
 
