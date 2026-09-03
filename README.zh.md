@@ -20,24 +20,153 @@
 
 ## 安装
 
-发布到 npm 后，可直接安装到原版 Harness 的 Web 或 Desktop profile：
+### 前置条件
 
-```text
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+- DeepSeek Harness / DSH Desktop 0.4.8 或更高版本。
+- Node.js 22.19 或更高版本（当前 DSH Desktop 使用 Node 24）。
+- Harness 中至少配置一个 LLM provider。
+- 首次安装需要能够访问 npm registry。
+
+### 推荐方式：安装已发布的 npm 包
+
+这个公开包已经把官方 `@liustack/modlens@3.25.4` 作为依赖和 DSH bundle 一起打包。无需安装 Docker、Python、8000 端口服务，也无需再单独安装 ModLens。
+
+1. 在 PowerShell 中进入 DSH Desktop 目录：
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
 ```
 
-官方 `@liustack/modlens@3.25.4` 会作为依赖自动安装。安装或更新后请重启对应 profile。
+2. 使用官方 npm 源。如果使用国内镜像，刚发布的新包可能暂时返回 404：
 
-本地开发时仍可直接安装源码目录：
-
-```text
-dsh plugin --profile web add <plugin-directory>
+```powershell
+pnpm config set registry https://registry.npmjs.org/
+pnpm config get registry
 ```
 
-重启 Harness 后即可使用。没有可用模型时插件保留原生选择，不阻塞对话。
+第二条命令应输出 `https://registry.npmjs.org/`。
 
-完整的原生安装、配置、桌面端、更新和故障排查步骤见[安装操作说明](../../docs/cookbook/model-router-galgame-installation.zh.md)。
+3. 安装到你实际使用的 profile：
+
+```powershell
+# Web profile
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+
+# Desktop profile（桌面程序使用 desktop profile 时执行）
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.11
+```
+
+如果 npm 提示 `No matching version found`，说明 registry 还没有同步该版本。
+先执行 `npm view @ljwei-stak/model-router-galgame version`，使用它显示的最新版本
+（当前公开 registry 为 `0.4.10`），或等待 `0.4.11` 发布完成。
+
+如果不想修改全局 pnpm 源，可以只在安装命令中指定：
+
+```powershell
+pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org @ljwei-stak/model-router-galgame@0.4.11
+```
+
+4. 检查路由器和它的 ModLens 依赖是否已加入 profile：
+
+```powershell
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+```
+
+输出中应包含：
+
+```text
+@ljwei-stak/model-router-galgame
+@liustack/modlens
+```
+
+安装本插件后不要再单独添加 `@liustack/modlens`。本插件已经包含官方 ModLens
+bundle。如果以前在同一个 profile 中单独安装过 ModLens，先删除那条独立依赖，
+再重新安装路由器：
+
+```powershell
+pnpm dsh plugin --profile web remove @liustack/modlens
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+```
+
+5. 关闭已经运行的 DSH，再启动对应 profile：
+
+```powershell
+pnpm dsh web
+# 或 desktop profile：
+pnpm dsh --profile desktop
+```
+
+不要在 3080 端口上重复启动两个 DSH 进程。如果出现 `EADDRINUSE`，先关闭旧进程，或者使用 `pnpm dsh web --port 3081`。
+
+### 检查 ModLens
+
+在已安装的 Web profile 中运行：
+
+```powershell
+pnpm dsh plugin --profile web exec modlens doctor
+```
+
+然后在 DSH 设置页或 `C:\Users\<你的用户名>\.modlens\config.json` 中配置视觉引擎。新建对话、上传图片并要求模型转录或解释图片即可。存在兼容的上游路由时，纯文本模型会显示对应的 `(modlens vision)` 条目。
+
+### 更新插件
+
+需要固定版本时：
+
+```powershell
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+```
+
+希望直接更新到 npm 最新版本时：
+
+```powershell
+pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
+```
+
+更新后请重启 DSH；Desktop profile 使用同样的命令并把 profile 改为 `desktop`。
+
+### 出现加载器或 profile 错误时重新安装
+
+如果启动时报 `duplicate loader entry id: modlens`，表示 ModLens 被单独安装过，
+又被本插件内置 bundle 再加载了一次。先关闭 DSH，再删除单独安装的 ModLens，
+然后重新安装本插件：
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
+pnpm dsh plugin --profile web remove @liustack/modlens
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+```
+
+输出应只显示一条 `modlens` 行和一条 `model-router-galgame` 行。如果报
+`EADDRINUSE` 且端口为 3080，说明旧的 DSH
+进程仍在运行；关闭旧进程，或换一个端口启动：
+
+```powershell
+pnpm dsh web --no-open --port 3081
+```
+
+### 本地源码安装
+
+如果要测试 `F:\DeepSeek_harness` 中的源码，不从 npm 下载：
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
+pnpm dsh plugin --profile web add F:\DeepSeek_harness\model-router-galgame
+```
+
+本地路径方式只用于开发测试；正式发布后推荐使用上面的 scoped npm 包名。
+
+### 卸载插件
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
+pnpm dsh plugin --profile web remove @ljwei-stak/model-router-galgame
+pnpm dsh plugin --profile desktop remove @ljwei-stak/model-router-galgame
+```
+
+卸载只会移除插件的 profile 层，不会删除 provider 凭据，也不会删除 `C:\Users\<你的用户名>\.modlens\config.json`。
+
+没有可用模型时，插件仍保留 Harness 原生模型选择，不会阻塞对话。完整的 provider 配置和故障排查见 [INSTALLATION_GUIDE.zh.md](INSTALLATION_GUIDE.zh.md) 与 [MODLENS_DEPLOYMENT.md](MODLENS_DEPLOYMENT.md)。
 
 ## 命令
 

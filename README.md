@@ -20,24 +20,156 @@ This plugin installs on an original DeepSeek Harness checkout. It adds a cost-aw
 
 ## Installation
 
-After publishing to npm, install the package into an original Harness Web or Desktop profile:
+### Requirements
 
-```text
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+- DeepSeek Harness / DSH Desktop 0.4.8 or newer.
+- Node.js 22.19 or newer (the current DSH Desktop release uses Node 24).
+- At least one LLM provider configured in Harness.
+- A network connection to the npm registry for the first installation.
+
+### Recommended: install the published npm package
+
+The package is public and already includes the official `@liustack/modlens@3.25.4` bundle. You do not need to install Docker, Python, a ModLens server, or a second ModLens package.
+
+1. Open PowerShell in the DSH Desktop checkout:
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
 ```
 
-The official `@liustack/modlens@3.25.4` bundle is installed automatically as a dependency. Restart the selected profile after installation.
+2. Use the official npm registry. This avoids a temporary 404 when a mirror has not synchronized a newly published package:
 
-For local development, install the checkout instead:
-
-```text
-dsh plugin --profile web add <plugin-directory>
+```powershell
+pnpm config set registry https://registry.npmjs.org/
+pnpm config get registry
 ```
 
-Restart Harness after installation. If no model is available, native model selection remains intact and the conversation is not blocked.
+The second command should print `https://registry.npmjs.org/`.
 
-See the [native installation tutorial](../../docs/cookbook/model-router-galgame-installation.md) for the complete setup, provider configuration, desktop, update, and troubleshooting procedure.
+3. Install into the profile you use:
+
+```powershell
+# Web profile
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+
+# Desktop profile (use this when the desktop application runs the desktop profile)
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.11
+```
+
+If npm still reports `No matching version found`, the registry has not received
+that release yet. Use the latest version shown by
+`npm view @ljwei-stak/model-router-galgame version` (currently `0.4.10` on the
+public registry), or wait until `0.4.11` finishes publishing.
+
+If you do not want to change the global pnpm registry, add this option to the `add` command instead:
+
+```powershell
+pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org @ljwei-stak/model-router-galgame@0.4.11
+```
+
+4. Verify that the router and its ModLens dependency are present:
+
+```powershell
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+```
+
+The output should contain:
+
+```text
+@ljwei-stak/model-router-galgame
+@liustack/modlens
+```
+
+Do not add `@liustack/modlens` separately after installing this package. The
+router already includes the official ModLens bundle. If you previously added
+ModLens separately to the same profile, remove that standalone dependency first,
+then reinstall the router:
+
+```powershell
+pnpm dsh plugin --profile web remove @liustack/modlens
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+```
+
+5. Stop any already-running DSH process, then start the selected profile:
+
+```powershell
+pnpm dsh web
+# or, for the desktop profile:
+pnpm dsh --profile desktop
+```
+
+Do not start a second process on the same port. If port 3080 is already in use, close the existing DSH process or start the web profile with `pnpm dsh web --port 3081`.
+
+### Verify ModLens
+
+Run the diagnostic from the installed Web profile (the command is forwarded to
+the profile's installed binary):
+
+```powershell
+pnpm dsh plugin --profile web exec modlens doctor
+```
+
+Configure the vision provider in the DSH settings page or in `C:\Users\<your-user>\.modlens\config.json`. Then create a conversation, upload an image, and ask the model to transcribe or explain it. Text-only models appear with a `(modlens vision)` entry when a compatible upstream route is available.
+
+### Update
+
+Pin an exact release when you want reproducible deployments:
+
+```powershell
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+```
+
+Or ask pnpm for the latest published release:
+
+```powershell
+pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
+```
+
+Restart DSH after updating. Repeat the same command with `--profile desktop` for the desktop profile.
+
+### Clean reinstall after a loader or profile error
+
+If startup reports `duplicate loader entry id: modlens`, it means the same
+ModLens bundle was installed separately and is also included by the router.
+Stop DSH, remove the standalone ModLens dependency, and add the router again:
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
+pnpm dsh plugin --profile web remove @liustack/modlens
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.11
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+```
+
+The dump should show one `modlens` row and one `model-router-galgame` row. If the
+error is `EADDRINUSE` on port 3080, an old
+DSH process is still running; close it or choose another port:
+
+```powershell
+pnpm dsh web --no-open --port 3081
+```
+
+### Local development installation
+
+To test the checkout in `F:\DeepSeek_harness` without downloading from npm:
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
+pnpm dsh plugin --profile web add F:\DeepSeek_harness\model-router-galgame
+```
+
+The local path form is only for development. The installed package is still named `@ljwei-stak/model-router-galgame` after the package is published.
+
+### Remove the plugin
+
+```powershell
+cd F:\DeepSeek_harness\DSH-Desktop
+pnpm dsh plugin --profile web remove @ljwei-stak/model-router-galgame
+pnpm dsh plugin --profile desktop remove @ljwei-stak/model-router-galgame
+```
+
+Removing the router also removes its profile layer. It does not delete your provider credentials or `C:\Users\<your-user>\.modlens\config.json`.
+
+If no model is available, native model selection remains intact and the conversation is not blocked. For the full provider setup and troubleshooting guide, see [INSTALLATION_GUIDE.zh.md](INSTALLATION_GUIDE.zh.md) and [MODLENS_DEPLOYMENT.md](MODLENS_DEPLOYMENT.md).
 
 ## Commands
 

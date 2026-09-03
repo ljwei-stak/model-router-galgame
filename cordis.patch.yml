@@ -3,6 +3,8 @@
 - insert:
     - id: modlens
       name: '@liustack/modlens'
+    # The package dependency is transitive from the profile's point of view,
+    # so this bundle entry is needed when the router is installed by itself.
     - id: model-router-galgame
       name: '@ljwei-stak/model-router-galgame'
 
