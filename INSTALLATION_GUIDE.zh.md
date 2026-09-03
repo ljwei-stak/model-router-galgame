@@ -134,6 +134,17 @@ model-router-galgame/
 
 ### 步骤2: 执行安装命令
 
+如果插件已经发布到 npm，直接使用包名安装：
+
+```powershell
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+```
+
+其中 `@0.4.10` 可以替换为目标版本号。官方 ModLens 依赖会自动解析，无需另行安装。
+
+如果正在本地开发，再使用目录安装：
+
 ```bash
 # 进入插件目录
 cd /path/to/model-router-galgame

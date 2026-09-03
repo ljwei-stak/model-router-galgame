@@ -1,9 +1,19 @@
 {
-  "name": "model-router-galgame",
+  "name": "@ljwei-stak/model-router-galgame",
   "version": "0.4.10",
-  "private": true,
   "type": "module",
   "description": "DeepSeek Harness plugin: adaptive model routing, cost analysis and GAL view",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ljwei-stak/model-router-galgame.git"
+  },
+  "homepage": "https://github.com/ljwei-stak/model-router-galgame#readme",
+  "bugs": {
+    "url": "https://github.com/ljwei-stak/model-router-galgame/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./.dsh-plugin/index.mjs",
   "exports": {
     ".": "./.dsh-plugin/index.mjs",
@@ -19,12 +29,27 @@
     "minDesktopVersion": "0.4.8",
     "minRuntimeVersion": "0.4.8"
   },
+  "files": [
+    ".dsh-plugin/index.mjs",
+    ".dsh-plugin/client.js",
+    ".dsh-plugin/shared/**/*.mjs",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build:client": "node scripts/build-client.mjs",
     "check:client": "node scripts/build-client.mjs --check",
     "test": "node --test tests/*.test.mjs"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@liustack/modlens": "3.25.4"
+  },
   "peerDependencies": {
     "@deepseek-ai/dsh-settings": "^0.1.1-rc.1",
     "@deepseek-ai/schemastery": "^3.18.1"

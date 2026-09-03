@@ -1,8 +1,10 @@
 # Model Router + GAL 视窗 bundle。安装到 web profile 后，Host half 负责
 # agent/pre-step / agent/request 路由，browser half 注册 GAL conversation.view。
 - insert:
+    - id: modlens
+      name: '@liustack/modlens'
     - id: model-router-galgame
-      name: model-router-galgame
+      name: '@ljwei-stak/model-router-galgame'
 
 # ModLens consumes the durable image blocks on the Host pre-step. Leave the
 # describe-image fallback available for explicit use, but do not rewrite every

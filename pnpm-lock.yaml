@@ -14,6 +14,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.2
+      '@liustack/modlens':
+        specifier: 3.25.4
+        version: 3.25.4
 
 packages:
 
@@ -54,8 +57,21 @@ packages:
   '@deepseek-ai/schemastery@3.18.2':
     resolution: {integrity: sha512-njDtZsznjYxok7KLLlHOPyuv2efdWVbSflAHgztSfbMsg+CVraEoRe2DjOCgClYv3ZCSm7WXoaUkbB/+RY7tWQ==}
 
+  '@liustack/modlens@3.25.4':
+    resolution: {integrity: sha512-BMdnbMPdhK9K6tKX2R0Twgu/h5mb4A1yKLx+QlRs8iOITDTrvdR9MCNV6Fu8I2InYF5N2KmUrDm/i5Y/iPFgwg==}
+    engines: {node: '>=22.19'}
+    hasBin: true
+
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  commander@13.1.0:
+    resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
+    engines: {node: '>=18'}
+
+  undici@8.10.1:
+    resolution: {integrity: sha512-YQ3WlbqjYMmNpdvDH64jAgLjxuAR9+649calDWhbshYaeQGO2bR4nI94ORJmwI3J9YhoKQnpyGOK+0zlWS5N5Q==}
+    engines: {node: '>=22.19.0'}
 
 snapshots:
 
@@ -88,4 +104,13 @@ snapshots:
       '@deepseek-ai/cosmokit': 1.8.3
       '@standard-schema/spec': 1.1.0
 
+  '@liustack/modlens@3.25.4':
+    dependencies:
+      commander: 13.1.0
+      undici: 8.10.1
+
   '@standard-schema/spec@1.1.0': {}
+
+  commander@13.1.0: {}
+
+  undici@8.10.1: {}

@@ -14,6 +14,17 @@
 
 ### 2. 安装插件
 
+正式 npm 包（发布后）：
+
+```bash
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+```
+
+官方 `@liustack/modlens@3.25.4` 会随插件自动安装。
+
+本地源码开发：
+
 ```bash
 # 方法1: 从插件目录安装
 cd /path/to/model-router-galgame

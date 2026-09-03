@@ -20,7 +20,16 @@
 
 ## 安装
 
-在原版 Harness 的 Web profile 中安装此目录：
+发布到 npm 后，可直接安装到原版 Harness 的 Web 或 Desktop profile：
+
+```text
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+```
+
+官方 `@liustack/modlens@3.25.4` 会作为依赖自动安装。安装或更新后请重启对应 profile。
+
+本地开发时仍可直接安装源码目录：
 
 ```text
 dsh plugin --profile web add <plugin-directory>

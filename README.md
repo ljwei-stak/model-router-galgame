@@ -20,7 +20,16 @@ This plugin installs on an original DeepSeek Harness checkout. It adds a cost-aw
 
 ## Installation
 
-Install this directory into the original Harness Web profile:
+After publishing to npm, install the package into an original Harness Web or Desktop profile:
+
+```text
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+```
+
+The official `@liustack/modlens@3.25.4` bundle is installed automatically as a dependency. Restart the selected profile after installation.
+
+For local development, install the checkout instead:
 
 ```text
 dsh plugin --profile web add <plugin-directory>

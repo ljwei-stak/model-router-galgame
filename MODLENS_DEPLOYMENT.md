@@ -6,15 +6,22 @@
 
 ## 安装到 DeepSeek Harness
 
-ModLens 3.25.4 是原生 DSH bundle。当前 Web profile 使用：
+ModLens 3.25.4 是原生 DSH bundle。发布后的 Model Router 包会自动安装它：
 
 ```powershell
-pnpm dsh plugin --profile web add @liustack/modlens@3.25.4
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
 ```
 
-安装结果位于 `F:\DeepSeek_harness\.dsh\profiles\web`，并与
-`model-router-galgame` 同时出现在 profile 的 `dependencies` 和 `dsh.profile.bundles`
-中。安装 ModLens 不应替换或删除路由器插件。
+安装结果位于对应的 `F:\DeepSeek_harness\.dsh\profiles\<profile>` 目录，
+`@ljwei-stak/model-router-galgame` 和 `@liustack/modlens` 会同时出现在依赖闭包和
+`dsh.profile.bundles` 中。安装或更新后请重启对应 profile。
+
+本地开发时可以直接安装源码目录：
+
+```powershell
+pnpm dsh plugin --profile web add F:\DeepSeek_harness\model-router-galgame
+```
 
 ## 官方运行方式
 
