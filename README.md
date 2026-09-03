@@ -60,8 +60,8 @@ pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersi
 pnpm dsh plugin --profile desktop add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
-The command currently returns `0.4.10` on the public registry. When a newer
-release is published, the same commands automatically use it. If npm reports
+The public registry may lag behind a just-created release. After publication,
+the same commands automatically use the newest visible version. If npm reports
 `No matching version found`, do not guess a version: rerun the query and use the
 version it prints.
 
@@ -133,10 +133,10 @@ pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersi
 ```
 
 For a reproducible deployment, replace `$routerVersion` with a concrete version
-that you have verified with `npm view` (for example `0.4.10`):
+that you have verified with `npm view` (for example `0.4.12`):
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.12
 ```
 
 You can also ask pnpm to update an already-installed package within its declared

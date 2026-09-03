@@ -60,8 +60,8 @@ pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersi
 pnpm dsh plugin --profile desktop add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
-当前公开 registry 返回的是 `0.4.10`。以后发布新版本时，同样的命令会自动使用
-新版本。如果 npm 提示 `No matching version found`，不要猜版本号；重新执行查询，
+公开 registry 可能会在新版本发布后短暂延迟同步；同步完成后，同样的命令会自动使用
+最新可见版本。如果 npm 提示 `No matching version found`，不要猜版本号；重新执行查询，
 并使用它实际输出的版本。
 
 如果不想修改全局 pnpm 源，可以只在安装命令中指定：
@@ -129,10 +129,10 @@ pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersi
 ```
 
 如果需要可复现部署，请把 `$routerVersion` 替换为通过 `npm view` 确认过的具体版本号
-（例如 `0.4.10`）：
+（例如 `0.4.12`）：
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.12
 ```
 
 已经安装过插件时，也可以让 pnpm 在当前版本范围内更新：

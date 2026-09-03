@@ -32,7 +32,7 @@ export const name = 'gal-view'
 
 const PROJECT_URL = 'https://github.com/ljwei-stak/deepseek-harness'
 const RELEASES_URL = `${PROJECT_URL}/releases`
-const PLUGIN_VERSION = '0.4.10'
+const PLUGIN_VERSION = '0.4.12'
 
 function createUpdateApi() {
   const bridge = globalThis.deepSeekHarnessDesktop
