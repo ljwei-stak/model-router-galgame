@@ -223,15 +223,17 @@ F(i)    quality floor for work package i
 B       optional per-request budget in USD
 ```
 
-The assignment is `pi: I -> M`. The primary objective is to maximize multi-objective
+The assignment is $\pi: I \to M$. The primary objective is to maximize multi-objective
 utility while satisfying quality constraints. When a budget is configured, it is a
 hard secondary constraint:
 
-```text
-maximize   Sum_i U(i, pi(i))
-subject to Q(i, pi(i)) >= F(i), for every feasible work package i
-           Sum_i Cost(i, pi(i)) <= B
-```
+$$
+\begin{aligned}
+\text{maximize}\quad & \sum_{i \in I} U(i,\pi(i)) \\
+\text{subject to}\quad & Q(i,\pi(i)) \ge F(i), && \forall i \in I \\
+& \sum_{i \in I} \operatorname{Cost}(i,\pi(i)) \le B
+\end{aligned}
+$$
 
 If no model satisfies a particular floor, the router chooses the highest-quality
 available fallback and records `constraintRelaxed: true`; it never silently claims
@@ -247,11 +249,13 @@ complex-task decomposition.
 Complexity is a bounded score assembled from text length, list/requirement density,
 domain markers, code/reasoning markers, and vision markers. The bands are:
 
-```text
-simple       0.00 <= complexity < 0.34
-balanced     0.34 <= complexity < 0.66
-complex      0.66 <= complexity <= 1.00
-```
+$$
+\begin{aligned}
+\text{simple:}\quad & 0.00 \le \operatorname{complexity} < 0.34 \\
+\text{balanced:}\quad & 0.34 \le \operatorname{complexity} < 0.66 \\
+\text{complex:}\quad & 0.66 \le \operatorname{complexity} \le 1.00
+\end{aligned}
+$$
 
 Simple and balanced requests use one execution package. A complex request is expanded
 into a small DAG-like sequence:
@@ -269,11 +273,14 @@ non-synthesis packages receive a small additional floor based on criticality.
 
 For route `m` and task type `t`, quality is resolved in this order:
 
-```text
-Q(m,t) = LiveBench category score
-       or LiveBench overall score
-       or checked-in catalog quality baseline
-```
+$$
+Q(m,t)=
+\begin{cases}
+\text{LiveBench category score}, & \text{when available};\\
+\text{LiveBench overall score}, & \text{otherwise};\\
+\text{catalog quality baseline}, & \text{otherwise}
+\end{cases}
+$$
 
 Specialty `S(m,t)` is `1.0` for an explicit catalog specialty, `0.58` for a general
 task, and a deterministic partial match for related domains. Risk `R(m)` and latency
@@ -281,33 +288,33 @@ task, and a deterministic partial match for related domains. Risk `R(m)` and lat
 
 With input/output prices in USD per one million tokens, cache-aware cost is:
 
-```text
-Cost(i,m) =
-  ((n_in - n_cache_read - n_cache_write) * p_in
-   + n_cache_read * p_cache_read
-   + n_cache_write * p_cache_write
-   + n_out * p_out) / 10^6
-```
+$$
+\operatorname{Cost}(i,m)=
+\frac{(n_{in}-n_{cache\_read}-n_{cache\_write})p_{in}
+      +n_{cache\_read}p_{cache\_read}
+      +n_{cache\_write}p_{cache\_write}
+      +n_{out}p_{out}}{10^6}
+$$
 
 The cache ratios are clamped to `[0,1]` and write ratio cannot overlap the read ratio.
 If no cache ratio is configured, ordinary input pricing is used.
 
 ### 4. Multi-objective utility
 
-The implementation uses a normalized cost score `C_norm = 1 - effective_price /
-max_catalog_price`, so a lower price receives a larger utility contribution. For a
+The implementation uses the normalized cost score
+$C_{\mathrm{norm}}=1-p_{\mathrm{effective}}/p_{\max}$, so a lower price receives a
+larger utility contribution. For a
 work package `i` and candidate `m`:
 
-```text
-U(i,m) = wq(c) * Q(i,m)
-       + wc(c) * C_norm(m)
-       + wl(c) * (1 - L(m))
-       + ws(c) * S(i,m)
-       - wr(c) * R(m)
-       - lambda * I[route m was already used]
-       - kappa * max(0, F(i) - Q(i,m))
-       + synthesis_bonus(i,m)
-```
+$$
+\begin{aligned}
+U(i,m)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m)+w_l(c)(1-L(m))\\
+&+w_s(c)S(i,m)-w_r(c)R(m)\\
+&-\lambda\,\mathbb{1}[m\text{ already used}]
+-\kappa\max(0,F(i)-Q(i,m))\\
+&+\operatorname{synthesis\_bonus}(i,m)
+\end{aligned}
+$$
 
 The default weight vectors are:
 
@@ -339,10 +346,10 @@ and bounds the work on large model catalogs.
 Candidate `a` dominates candidate `b` for the same package when it is no worse in all
 five dimensions and strictly better in at least one:
 
-```text
-Q(a) >= Q(b), Cost(a) <= Cost(b), L(a) <= L(b),
-S(a) >= S(b), R(a) <= R(b)
-```
+$$
+Q(a)\ge Q(b),\quad \operatorname{Cost}(a)\le\operatorname{Cost}(b),\quad L(a)\le L(b),\quad
+S(a)\ge S(b),\quad R(a)\le R(b)
+$$
 
 Dominated candidates cannot improve quality, cost, latency, specialty, or risk. The
 router keeps the Pareto frontier plus three anchors: the cheapest candidate, the
@@ -400,7 +407,7 @@ the Host router.
 
 **QCG-Router (quality-constrained greedy / Pareto variant)**
 
-QCG evaluates every model in `O(|M|)`, predicts quality from the baseline score plus a
+QCG evaluates every model in $O(\lvert M\rvert)$, predicts quality from the baseline score plus a
 specialty bonus, removes candidates below `F(i)`, computes the five-objective utility,
 and selects the first Pareto/utility candidate. If the feasible set is empty, it
 returns the highest-quality fallback with `constraintRelaxed: true`.
@@ -410,10 +417,11 @@ returns the highest-quality fallback with `constraintRelaxed: true`.
 AMO starts from the paper's complexity-specific weights. After observing actual cost
 and quality it computes:
 
-```text
-e_cost = clamp((actual_cost - target_cost) / max(target_cost, eps))
-v_q    = max(0, quality_floor - actual_quality)
-```
+$$
+e_{cost}=\operatorname{clamp}\!\left(\frac{\operatorname{actual\_cost}-\operatorname{target\_cost}}
+{\max(\operatorname{target\_cost},\varepsilon)}\right),\qquad
+v_q=\max(0,\operatorname{quality\_floor}-\operatorname{actual\_quality})
+$$
 
 The feedback is exponentially smoothed (`0.10`). Positive cost error increases cost
 pressure; a quality violation increases quality and specialty pressure. Weights are
@@ -433,16 +441,17 @@ assigning a below-floor model.
 
 ### 7. Complexity and correctness properties
 
-Let `N = |M|`, `K <= 12` be the retained candidate pool, `P = |I|`, and `W = 256` be
+Let $N=\lvert M\rvert$, $K\le 12$ be the retained candidate pool,
+$P=\lvert I\rvert$, and $W=256$ be
 the beam width. The current implementation has the following bounded worst-case
 costs:
 
 | Component | Time complexity | Space complexity |
 |---|---:|---:|
-| Candidate scoring | `O(PN)` | `O(PN)` |
-| Pairwise Pareto pruning | `O(PN^2)` | `O(PN)` |
-| Beam assignment | `O(PWK)` | `O(WK + P)` |
-| DAG topological sort | `O(|V| + |E|)` | `O(|V| + |E|)` |
+| Candidate scoring | $O(PN)$ | $O(PN)$ |
+| Pairwise Pareto pruning | $O(PN^2)$ | $O(PN)$ |
+| Beam assignment | $O(PWK)$ | $O(WK+P)$ |
+| DAG topological sort | $O(\lvert V\rvert+\lvert E\rvert)$ | $O(\lvert V\rvert+\lvert E\rvert)$ |
 
 The constants are small for desktop catalogs, and all loops are bounded by the
 discovered routes, 12 candidates per package, and beam width 256.
@@ -450,7 +459,7 @@ discovered routes, 12 candidates per package, and beam width 256.
 The following invariants are enforced and exposed in the result:
 
 1. **Quality guarantee**: if a qualified candidate exists for a package, every normal
-   assignment considered by the solver satisfies `Q >= F`.
+   assignment considered by the solver satisfies $Q\ge F$.
 2. **Budget guarantee**: a plan marked `budgetFeasible: true` has estimated total cost
    no greater than `B`, subject to the configured token and price estimates.
 3. **Dependency guarantee**: every collaboration stage is emitted in topological
@@ -470,11 +479,13 @@ latency; Pareto pruning and suffix lower bounds keep the default `W = 256` pract
 
 For every plan the router reports:
 
-```text
-TotalCost       = Sum_i Cost(i, assign(i))
-BaselineCost    = cost of the strongest available model per package
-EstimatedSaving = max(0, 1 - TotalCost / BaselineCost)
-```
+$$
+\begin{aligned}
+\operatorname{TotalCost}&=\sum_{i\in I}\operatorname{Cost}(i,\operatorname{assign}(i)),\\
+\operatorname{BaselineCost}&=\text{cost of the strongest available model per package},\\
+\operatorname{EstimatedSaving}&=\max\!\left(0,1-\frac{\operatorname{TotalCost}}{\operatorname{BaselineCost}}\right)
+\end{aligned}
+$$
 
 The plan also contains per-stage token estimates, cache read/write tokens, predicted
 quality, quality floor, provider/model, Pareto-pruned count, beam width, handoff count,

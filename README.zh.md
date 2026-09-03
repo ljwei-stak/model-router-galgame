@@ -215,14 +215,16 @@ F(i)    工作包 i 的质量下限
 B       可选的单请求 USD 预算
 ```
 
-分配函数为 `pi: I -> M`。首要目标是在满足质量约束的前提下最大化多目标效用；
+分配函数为 $\pi: I \to M$。首要目标是在满足质量约束的前提下最大化多目标效用；
 设置预算时，预算是第二层硬约束：
 
-```text
-最大化     Sum_i U(i, pi(i))
-约束       Q(i, pi(i)) >= F(i)，对每个可满足约束的工作包 i
-           Sum_i Cost(i, pi(i)) <= B
-```
+$$
+\begin{aligned}
+\text{最大化}\quad & \sum_{i \in I} U(i,\pi(i)) \\
+\text{约束}\quad & Q(i,\pi(i)) \ge F(i), && \forall i \in I \\
+& \sum_{i \in I} \operatorname{Cost}(i,\pi(i)) \le B
+\end{aligned}
+$$
 
 如果某个工作包没有任何模型达到质量下限，系统会选择可用候选中质量最高的回退模型，
 并写入 `constraintRelaxed: true`；不会把未满足的约束伪装成已满足。
@@ -235,11 +237,13 @@ B       可选的单请求 USD 预算
 复杂度分数由文本长度、条目/要求密度、领域关键词、代码/推理标记和视觉标记组成，
 并限制在 `[0,1]`：
 
-```text
-simple       0.00 <= complexity < 0.34
-balanced     0.34 <= complexity < 0.66
-complex      0.66 <= complexity <= 1.00
-```
+$$
+\begin{aligned}
+\text{simple:}\quad & 0.00 \le \operatorname{complexity} < 0.34 \\
+\text{balanced:}\quad & 0.34 \le \operatorname{complexity} < 0.66 \\
+\text{complex:}\quad & 0.66 \le \operatorname{complexity} \le 1.00
+\end{aligned}
+$$
 
 简单和均衡请求使用一个执行工作包。复杂请求展开为一个小型 DAG 序列：
 
@@ -255,11 +259,14 @@ analysis -> 领域执行工作包 -> 可选 verification -> synthesis
 
 对于模型路由 `m` 和任务类型 `t`，质量按以下顺序解析：
 
-```text
-Q(m,t) = LiveBench 分类分数
-       或 LiveBench overall 分数
-       或仓库内实验基线目录分数
-```
+$$
+Q(m,t)=
+\begin{cases}
+\text{LiveBench 分类分数}, & \text{可用时};\\
+\text{LiveBench overall 分数}, & \text{否则};\\
+\text{仓库内实验基线分数}, & \text{否则}
+\end{cases}
+$$
 
 专长 `S(m,t)`：模型明确声明该专长时为 `1.0`；general 任务为 `0.58`；研究/写作等
 相关方向使用确定性的部分匹配。风险 `R(m)` 与延迟 `L(m)` 使用目录归一化值；用户
@@ -267,32 +274,32 @@ Q(m,t) = LiveBench 分类分数
 
 输入/输出价格单位为 USD/百万 token，支持 prompt cache 的费用公式为：
 
-```text
-Cost(i,m) =
-  ((n_in - n_cache_read - n_cache_write) * p_in
-   + n_cache_read * p_cache_read
-   + n_cache_write * p_cache_write
-   + n_out * p_out) / 10^6
-```
+$$
+\operatorname{Cost}(i,m)=
+\frac{(n_{in}-n_{cache\_read}-n_{cache\_write})p_{in}
+      +n_{cache\_read}p_{cache\_read}
+      +n_{cache\_write}p_{cache\_write}
+      +n_{out}p_{out}}{10^6}
+$$
 
 缓存读写比例会被限制在 `[0,1]`，写入比例不会与读取比例重叠；没有配置缓存比例时，
 全部输入按普通输入价格计费。
 
 ### 4. 多目标效用函数
 
-代码使用归一化费用效用 `C_norm = 1 - effective_price / max_catalog_price`，因此
+代码使用归一化费用效用
+$C_{\mathrm{norm}}=1-p_{\mathrm{effective}}/p_{\max}$，因此
 实际价格越低，成本目标贡献越高。单个工作包 `i` 选择模型 `m` 的效用为：
 
-```text
-U(i,m) = wq(c) * Q(i,m)
-       + wc(c) * C_norm(m)
-       + wl(c) * (1 - L(m))
-       + ws(c) * S(i,m)
-       - wr(c) * R(m)
-       - lambda * I[路由 m 已经使用]
-       - kappa * max(0, F(i) - Q(i,m))
-       + synthesis_bonus(i,m)
-```
+$$
+\begin{aligned}
+U(i,m)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m)+w_l(c)(1-L(m))\\
+&+w_s(c)S(i,m)-w_r(c)R(m)\\
+&-\lambda\,\mathbb{1}[m\text{ 已经使用}]
+-\kappa\max(0,F(i)-Q(i,m))\\
+&+\operatorname{synthesis\_bonus}(i,m)
+\end{aligned}
+$$
 
 默认权重为：
 
@@ -322,10 +329,10 @@ synthesis 使用质量优先的 `0.70/0.10/0.04/0.10/0.06` 权重；存在 DeepS
 对于同一个工作包，候选 `a` 支配候选 `b` 的条件是：五个维度全部不差，且至少一个维度
 严格更好：
 
-```text
-Q(a) >= Q(b), Cost(a) <= Cost(b), L(a) <= L(b),
-S(a) >= S(b), R(a) <= R(b)
-```
+$$
+Q(a)\ge Q(b),\quad \operatorname{Cost}(a)\le\operatorname{Cost}(b),\quad L(a)\le L(b),\quad
+S(a)\ge S(b),\quad R(a)\le R(b)
+$$
 
 被支配的模型不可能同时改善质量、费用、延迟、专长或风险，因此可以安全删除。系统保留
 Pareto 前沿，并额外保留三个锚点：最低费用、最高综合效用和最高质量候选；每个工作包
@@ -384,10 +391,11 @@ QCG 对每个模型进行质量、费用、延迟、专长和风险评估；质�
 
 AMO 从论文规定的三组复杂度权重开始。得到真实费用和质量后计算：
 
-```text
-e_cost = clamp((actual_cost - target_cost) / max(target_cost, eps))
-v_q    = max(0, quality_floor - actual_quality)
-```
+$$
+e_{cost}=\operatorname{clamp}\!\left(\frac{\operatorname{actual\_cost}-\operatorname{target\_cost}}
+{\max(\operatorname{target\_cost},\varepsilon)}\right),\qquad
+v_q=\max(0,\operatorname{quality\_floor}-\operatorname{actual\_quality})
+$$
 
 反馈使用 `0.10` 的指数平滑。实际费用高于目标时提高成本目标权重；质量违反时提高质量
 和专长权重。每次更新后投影回正权重单纯形，保证五个权重有限、为正且总和为 1。这样修正
@@ -403,22 +411,23 @@ synthesis 节点额外加 `100`。每个节点保留 QCG Pareto 候选，然后�
 
 ### 7. 复杂度与正确性性质
 
-令 `N = |M|`、`K <= 12` 为剪枝后的候选数、`P = |I|`、`W = 256` 为 Beam 宽度，
+令 $N=\lvert M\rvert$、$K\le 12$ 为剪枝后的候选数、
+$P=\lvert I\rvert$、$W=256$ 为 Beam 宽度，
 当前实现的有界最坏情况复杂度为：
 
 | 组件 | 时间复杂度 | 空间复杂度 |
 |---|---:|---:|
-| 候选评分 | `O(PN)` | `O(PN)` |
-| 两两 Pareto 剪枝 | `O(PN^2)` | `O(PN)` |
-| Beam 分配 | `O(PWK)` | `O(WK + P)` |
-| DAG 拓扑排序 | `O(|V| + |E|)` | `O(|V| + |E|)` |
+| 候选评分 | $O(PN)$ | $O(PN)$ |
+| 两两 Pareto 剪枝 | $O(PN^2)$ | $O(PN)$ |
+| Beam 分配 | $O(PWK)$ | $O(WK+P)$ |
+| DAG 拓扑排序 | $O(\lvert V\rvert+\lvert E\rvert)$ | $O(\lvert V\rvert+\lvert E\rvert)$ |
 
 桌面端模型目录通常较小，且所有循环都受已发现路由数、每包 12 个候选和 Beam 宽度 256
 限制，适合交互式生成计划。
 
 系统强制并在结果中公开以下不变量：
 
-1. **质量保证**：只要某个工作包存在合格候选，正常分配中所有候选都满足 `Q >= F`。
+1. **质量保证**：只要某个工作包存在合格候选，正常分配中所有候选都满足 $Q\ge F$。
 2. **预算保证**：标记 `budgetFeasible: true` 的方案，其估算总费用不超过 `B`（以配置的
    token 和价格估算为准）。
 3. **依赖保证**：协作阶段按拓扑顺序输出，并记录模型交接次数。
@@ -434,11 +443,13 @@ Beam 求解器是有界的。它为桌面端交互式路由提供可审计、确
 
 每个计划输出：
 
-```text
-TotalCost       = Sum_i Cost(i, assign(i))
-BaselineCost    = 每个工作包使用当前可用最高质量模型的费用
-EstimatedSaving = max(0, 1 - TotalCost / BaselineCost)
-```
+$$
+\begin{aligned}
+\operatorname{TotalCost}&=\sum_{i\in I}\operatorname{Cost}(i,\operatorname{assign}(i)),\\
+\operatorname{BaselineCost}&=\text{每个工作包使用当前可用最高质量模型的费用},\\
+\operatorname{EstimatedSaving}&=\max\!\left(0,1-\frac{\operatorname{TotalCost}}{\operatorname{BaselineCost}}\right)
+\end{aligned}
+$$
 
 同时输出每阶段 token 估计、缓存读写 token、预测质量、质量下限、provider/model、Pareto
 剪枝数量、Beam 宽度、交接次数、预算可行性及约束是否放宽。`/router plan` 和 GAL 路由
