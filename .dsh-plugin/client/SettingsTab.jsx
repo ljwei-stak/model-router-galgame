@@ -14,10 +14,35 @@ function versionText(item, fallback) {
 }
 
 function availabilityText(item) {
-  if (item === undefined) return '点击“检查更新”获取 GitHub Release 状态。'
+  if (item === undefined) return '点击“检查更新”获取最新版本。'
+  if (item.known === false) return item.reason || '暂时无法确认最新版本。'
   if (item.available && item.installable) return `发现 ${item.latestVersion}，可以更新。`
   if (item.available) return item.reason || '发现新版本，但当前环境不能直接安装。'
   return item.reason || '已是最新版。'
+}
+
+function assessmentNotice(value) {
+  const available = [value?.plugin?.available ? 'npm 插件' : '', value?.desktop?.available ? '完整客户端' : ''].filter(Boolean)
+  if (available.length > 0) return `发现可更新内容：${available.join('、')}。`
+  const unknown = [value?.plugin, value?.desktop].filter(item => item?.known === false)
+  if (unknown.length === 2) return '插件和完整客户端的版本检查均未完成，请查看下方原因。'
+  if (unknown.length === 1) return `已检查可用渠道；${unknown[0].reason || '其中一项暂时无法确认。'}`
+  return 'npm 插件与完整客户端均已是最新版。'
+}
+
+function installedPluginAssessment(previous, result) {
+  const version = result?.version ?? previous?.latestVersion ?? previous?.currentVersion ?? '未知'
+  return {
+    ...previous,
+    known: true,
+    available: false,
+    installable: true,
+    currentVersion: version,
+    latestVersion: version,
+    reason: result?.restartRequired
+      ? `已写入 ${version}，完全退出并重新启动 DSH Desktop 后生效。`
+      : result?.message || '插件及其 npm 依赖已是 latest。',
+  }
 }
 
 function numericPrice(value, fallback = 0) {
@@ -162,17 +187,15 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingA
 
   const checkUpdates = async () => {
     if (typeof updateApi?.check !== 'function') {
-      setNotice('网页端不能写入本机程序，已为你打开项目 Release。')
-      await updateApi?.openReleases?.()
+      setNotice('当前环境不能检查更新。')
       return null
     }
     setBusy('check')
-    setNotice('正在检查 GitHub Release...')
+    setNotice('正在检查 npm 插件与完整客户端...')
     try {
       const next = await updateApi.check()
       setAssessment(next)
-      const available = [next.plugin.available ? '插件' : '', next.desktop.available ? '完整客户端' : ''].filter(Boolean)
-      setNotice(available.length > 0 ? `发现可更新内容：${available.join('、')}。` : '插件与完整客户端均已是最新版。')
+      setNotice(assessmentNotice(next))
       return next
     } catch (error) {
       setNotice(`检查更新失败：${messageFromError(error)}`)
@@ -185,21 +208,28 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingA
   const install = async kind => {
     const method = kind === 'plugin' ? updateApi?.installPlugin : updateApi?.installDesktop
     if (typeof method !== 'function') {
-      setNotice('网页端不能直接更新本机文件，已为你打开项目 Release。')
-      await updateApi?.openReleases?.()
+      setNotice(kind === 'plugin'
+        ? '当前环境不能安装 npm 插件，已打开 npm 包页面。'
+        : '当前环境不能更新完整客户端，已打开客户端 Releases。')
+      await (kind === 'plugin' ? updateApi?.openNpm?.() : updateApi?.openReleases?.())
       return
     }
     setBusy(kind)
     setProgress({ kind, phase: 'start', percent: 0 })
-    setNotice(kind === 'plugin' ? '正在准备插件更新...' : '正在准备完整客户端更新...')
+    setNotice(kind === 'plugin' ? '正在从 npm 更新插件...' : '正在启动完整客户端更新检查...')
     try {
-      const result = await method()
+      const result = await method(assessment?.[kind])
       if (result?.cancelled) {
         setNotice('已取消更新。')
         return
       }
       setNotice(result?.message || '更新已准备完成。')
-      if (kind === 'plugin' && !result?.restartScheduled) await checkUpdates()
+      if (kind === 'plugin') {
+        setAssessment(current => ({
+          ...current,
+          plugin: installedPluginAssessment(current?.plugin, result),
+        }))
+      }
     } catch (error) {
       setNotice(`${kind === 'plugin' ? '插件' : '客户端'}更新失败：${messageFromError(error)}`)
     } finally {
@@ -209,8 +239,7 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingA
 
   const installAll = async () => {
     if (typeof updateApi?.check !== 'function') {
-      setNotice('网页端不能更新本机插件或客户端，已为你打开项目 Release。')
-      await updateApi?.openReleases?.()
+      setNotice('当前环境不能检查插件或客户端更新。')
       return
     }
     setBusy('all')
@@ -220,26 +249,41 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingA
       const next = await updateApi.check()
       setAssessment(next)
       const selection = selectUnifiedUpdate(next)
-      if (selection.kind === null) {
+      if (selection.steps.length === 0) {
         setNotice(selection.reason)
         return
       }
-
-      const method = selection.kind === 'desktop' ? updateApi?.installDesktop : updateApi?.installPlugin
-      if (typeof method !== 'function') {
-        setNotice('当前环境不能执行所需更新，已为你打开项目 Release。')
-        await updateApi?.openReleases?.()
-        return
-      }
-      setProgress({ kind: selection.kind, phase: 'start', percent: 0 })
       setNotice(selection.reason)
-      const result = await method()
-      if (result?.cancelled) {
-        setNotice('已取消更新。')
-        return
+
+      const completed = []
+      let restartScheduled = false
+      let restartRequired = false
+      let pluginResult = null
+      for (const kind of selection.steps) {
+        const method = kind === 'plugin' ? updateApi?.installPlugin : updateApi?.installDesktop
+        if (typeof method !== 'function') continue
+        setProgress({ kind, phase: 'start', percent: 0 })
+        setNotice(`正在更新${kind === 'plugin' ? ' npm 插件' : '完整客户端'}...`)
+        const result = await method(next[kind])
+        if (result?.cancelled) {
+          setNotice(`${kind === 'plugin' ? '插件' : '客户端'}更新已取消。`)
+          return
+        }
+        completed.push(kind === 'plugin' ? 'npm 插件已写入' : '客户端更新检查已启动')
+        if (kind === 'plugin') pluginResult = result
+        restartScheduled ||= result?.restartScheduled === true
+        restartRequired ||= result?.restartRequired === true
       }
-      setNotice(result?.message || '更新已准备完成。')
-      if (selection.kind === 'plugin' && !result?.restartScheduled) {
+      const blockedSuffix = selection.blocked.length > 0 ? ` 未执行：${selection.blocked.join('；')}` : ''
+      const restartSuffix = restartRequired ? ' npm 插件将在完全退出并重新启动 DSH Desktop 后生效。' : ''
+      setNotice(`已完成：${completed.join('、')}。${restartSuffix}${blockedSuffix}`.trim())
+      if (pluginResult !== null) {
+        setAssessment(current => ({
+          ...current,
+          plugin: installedPluginAssessment(current?.plugin, pluginResult),
+        }))
+      }
+      if (!restartScheduled && !restartRequired) {
         setAssessment(await updateApi.check())
       }
     } catch (error) {
@@ -305,23 +349,23 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingA
         <div className="gvsv-update-head">
           <div>
             <h3 id="gvsv-update-title">项目更新</h3>
-            <p>更新固定来自 ljwei-stak/deepseek-harness 的稳定 Release，不会使用上游仓库或第三方下载地址。</p>
+            <p>npm 聚合包会同步安装 Model Router、ModLens、ModSearch、Ego Browser 和 Approval Gate；DSH Desktop 使用官方独立更新器。</p>
           </div>
-          <button type="button" className="gvsv-link" onClick={() => updateApi?.openProject?.()}>项目主页</button>
+          <button type="button" className="gvsv-link" onClick={() => updateApi?.openProject?.()}>插件项目</button>
         </div>
 
         <div className="gvsv-version-list">
           <div className="gvsv-version-row">
             <div>
-              <strong>Model Router + GALGame 插件</strong>
+              <strong>Model Router + GALGame npm 插件包</strong>
               <span>{versionText(assessment?.plugin, updateApi?.pluginVersion ?? '未知')}</span>
               <small>{availabilityText(assessment?.plugin)}</small>
             </div>
-            <button type="button" disabled={busy !== ''} onClick={() => install('plugin')}>仅更新插件</button>
+            <button type="button" disabled={busy !== ''} onClick={() => install('plugin')}>仅更新 npm 插件</button>
           </div>
           <div className="gvsv-version-row">
             <div>
-              <strong>DeepSeek Harness 完整客户端</strong>
+              <strong>DSH Desktop 完整客户端</strong>
               <span>{versionText(assessment?.desktop, '检查后显示')}</span>
               <small>{availabilityText(assessment?.desktop)}</small>
             </div>
@@ -340,12 +384,13 @@ export function GalViewSettingsTab({ useEnabled, setEnabled, updateApi, pricingA
             {busy === 'all' ? '正在一键更新...' : '一键更新插件与客户端'}
           </button>
           <button type="button" disabled={busy !== ''} onClick={checkUpdates}>{busy === 'check' ? '检查中...' : '检查更新'}</button>
-          <button type="button" className="gvsv-secondary" onClick={() => updateApi?.openReleases?.()}>查看 Releases</button>
+          <button type="button" className="gvsv-secondary" onClick={() => updateApi?.openNpm?.()}>查看 npm 包</button>
+          <button type="button" className="gvsv-secondary" onClick={() => updateApi?.openReleases?.()}>DSH Desktop Releases</button>
         </div>
         <p className="gvsv-footnote">
           {updateApi?.isDesktop
-            ? '一键更新会优先安装包含同版本插件的完整客户端；客户端已是最新版时才单独更新插件。API、模型配置和历史任务会保留。'
-            : '当前是网页环境，只能查看 Release；安装桌面客户端后可直接更新本机插件和完整客户端。'}
+            ? '插件与完整客户端独立检查；一键更新会先从 npm 写入插件，再启动 DSH Desktop 官方更新流程。插件写入后请完全退出并重新启动客户端。'
+            : '网页端可以检查 npm 插件版本；安装桌面客户端后才能写入本机插件并更新完整客户端。'}
         </p>
       </section>
     </div>

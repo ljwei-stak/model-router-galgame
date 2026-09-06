@@ -8,17 +8,18 @@
 
 ### 1. 前置要求
 
-- ✅ 已安装 DeepSeek Harness (0.4.8+)
+- ✅ 已安装 DSH Desktop 2.0.5+，或 `@deepseek-ai/dsh@0.1.2-rc.1`
 - ✅ 已配置至少一个模型 provider
 - ✅ Node.js 环境 (用于测试，可选)
 
 ### 2. 安装插件
 
-正式 npm 包（发布后）：
+正式 npm 包（当前版本 `0.4.20`）：
 
 ```bash
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+pnpm config set registry https://registry.npmjs.org/
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.20
 ```
 
 官方 `@liustack/modlens@3.25.4` 会随插件自动安装。
@@ -557,5 +558,5 @@ cacheReadRatio: 0.3
 ---
 
 **最后更新**: 2026-09-01  
-**插件版本**: 0.4.10  
-**兼容性**: DeepSeek Harness 0.4.8+
+**插件版本**: 0.4.20  
+**已验证宿主**: DSH Desktop 2.0.5 / `@deepseek-ai/dsh@0.1.2-rc.1`

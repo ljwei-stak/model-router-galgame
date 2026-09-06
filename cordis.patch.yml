@@ -3,15 +3,24 @@
 - insert:
     - id: modlens
       name: '@liustack/modlens'
+    # ModSearch replaces the native web_search provider and adds read_page/x_search.
+    - id: modsearch
+      name: '@liustack/modsearch'
+    # Ego Browser supplies visible Chromium tools for JS-heavy and anti-bot pages.
+    - id: ego-browser
+      name: '@ljwei-stak/dsh-ego-browser'
+    # The router annotates multi-task approval requests; dsh-approval-gate
+    # owns the Flash decision, human handoff, audit and snapshot UI.
+    - id: dsh-approval-gate
+      name: '@ljwei-stak/dsh-approval-gate'
     # The package dependency is transitive from the profile's point of view,
     # so this bundle entry is needed when the router is installed by itself.
     - id: model-router-galgame
       name: '@ljwei-stak/model-router-galgame'
 
-# ModLens consumes the durable image blocks on the Host pre-step. Leave the
-# describe-image fallback available for explicit use, but do not rewrite every
-# text-model upload into a markdown tool reference before ModLens can read it.
-- id: web-ui-describe-image
-  name: '@linxin666/dsh-tool-describe-image'
+# Route DSH's native web_search seam through ModSearch's engine chain.
+- id: web
   config:
-    interceptImageSend: false
+    searchProvider: modsearch
+
+

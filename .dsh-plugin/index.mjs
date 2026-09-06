@@ -15,6 +15,18 @@ import {
   modLensUpstream,
   routeThroughModLens,
 } from './shared/modlens-routing.mjs'
+import {
+  approvalGateStatus,
+  approvalSafetyContext,
+  decorateApprovalReason,
+  isApprovalGateReason,
+} from './shared/approval-gate.mjs'
+import {
+  webCapabilityForPlan,
+  webCapabilityStatus,
+  webInstruction,
+} from './shared/web-routing.mjs'
+import { registerNpmUpdateRoute } from './shared/npm-update.mjs'
 
 let settingsRuntimePromise
 let routerSettings = { ...DEFAULT_ROUTER_SETTINGS }
@@ -23,8 +35,8 @@ let routerSettingsPromise = Promise.resolve(false)
 async function loadSettingsRuntime() {
   if (settingsRuntimePromise !== undefined) return settingsRuntimePromise
   settingsRuntimePromise = Promise.all([
-    import('@deepseek-ai/schemastery').catch(() => import('../../../vendor/schemastery/lib/index.mjs')),
-    import('@deepseek-ai/dsh-settings').catch(() => import('../../../packages/settings/settings/lib/index.js')),
+    import('@deepseek-ai/schemastery'),
+    import('@deepseek-ai/dsh-settings'),
   ]).then(([schemaModule, settingsModule]) => ({
     z: schemaModule.default ?? schemaModule,
     settingsNamespace: settingsModule.settingsNamespace,
@@ -213,6 +225,17 @@ function stageMessage(plan, step) {
   }
 }
 
+function webMessage(plan) {
+  const text = webInstruction(plan?.web)
+  if (text === '') return null
+  return {
+    id: newMessageId(),
+    role: 'user',
+    content: [{ type: 'text', text }],
+    source: { kind: 'plugin', plugin: name, form: 'web-capability', summary: '联网与可见浏览器策略' },
+  }
+}
+
 /**
  * Persona is a final-answer context only. It is intentionally a separate
  * message so the collaboration stages and their audit records remain free of
@@ -268,6 +291,7 @@ function analysisMessage(plan) {
     `缓存计费比例：读取 ${Math.round(Number(plan.optimization?.cacheReadRatio ?? 0) * 100)}%，写入 ${Math.round(Number(plan.optimization?.cacheWriteRatio ?? 0) * 100)}%（未填写时按普通输入计费）`,
     Number(plan.optimization?.budgetUsd ?? 0) > 0 ? `预算上限：$${Number(plan.optimization.budgetUsd).toFixed(6)}；${plan.optimization.budgetExceeded ? '仍超预算，已在质量下限内尽量压缩' : '满足预算约束'}` : '',
     `LiveBench：${plan.optimization?.liveBench?.fetchedAt ? `快照于 ${new Date(Number(plan.optimization.liveBench.fetchedAt)).toISOString()}${plan.optimization.liveBench.stale ? '（本次刷新失败，沿用上次快照）' : ''}` : '未完成联网核验，使用实验基线'}`,
+    plan.web?.needsWeb ? `联网策略：${plan.web.directBrowser ? 'Ego Browser 可见窗口优先' : 'ModSearch 搜索/抓取，失败时 Ego Browser 窗口兜底'}；反爬处理：人工接管后继续` : '',
     String(plan.reason ?? ''),
   ].filter(Boolean).join('\n')
   return {
@@ -404,6 +428,12 @@ function createOpenCodeRepairScheduler(ctx) {
 }
 
 export function apply(ctx) {
+  // Desktop-only package mutation is exposed through an authenticated,
+  // fixed-purpose route when the optional native capabilities are present.
+  ctx.inject?.(['connection', 'desktopProfiles', 'desktopPnpm'], desktopCtx => {
+    registerNpmUpdateRoute(desktopCtx, import.meta.url)
+  })
+
   // Settings are optional in headless test/minimal hosts. In a full Harness
   // process this registers the editable pricing, LiveBench and budget section;
   // the dynamic import keeps the standalone plugin loadable during bootstrap.
@@ -432,6 +462,27 @@ export function apply(ctx) {
     routerSettingsPromise = registerRouterSettings(ctx)
   }
   const scheduleOpenCodeRepair = createOpenCodeRepairScheduler(ctx)
+
+  // dsh-approval-gate owns the actual decision. The router adds auditable
+  // stage/route context before that waterfall so multi-task escalations are
+  // visible to the gate's Flash classifier and human reviewer. The request
+  // object is borrowed by the Host approval service for this dispatch only.
+  ctx.on('approval/request', (request, next) => {
+    if (!isApprovalGateReason(request?.reason)) return next()
+    const state = request?.agent === undefined ? null : stateFor(request.agent)
+    const context = approvalSafetyContext(state, state?.lastStep)
+    const decorated = decorateApprovalReason(request.reason, context)
+    if (decorated !== request.reason) {
+      try {
+        request.reason = decorated
+      } catch {
+        // Some hosts freeze event payloads. In that case the gate still
+        // receives the original reason and remains fully fail-safe.
+      }
+    }
+    return next()
+  }, { prepend: true })
+
   ctx.commands.register({
     name: 'router',
     description: 'switch Model Router mode or inspect the latest routing plan',
@@ -440,7 +491,7 @@ export function apply(ctx) {
     // the whole composer submission; the GAL client sends this command
     // without image bytes so the attachment remains available for the next
     // user turn.
-    input: { hint: 'mode collective|single | plan', images: true },
+    input: { hint: 'mode collective|single | plan | safety', images: true },
     recordInput: true,
     handler: ({ agent, rawInput }) => {
       const state = stateFor(agent)
@@ -458,7 +509,13 @@ export function apply(ctx) {
       if (value === 'plan' || value === '') {
         return { kind: 'success', text: state.plan === null ? '还没有可展示的路由方案。' : JSON.stringify(state.plan) }
       }
-      return { kind: 'error', text: '用法：/router mode collective、/router mode single 或 /router plan' }
+      if (value === 'safety' || value === 'approval') {
+        return { kind: 'success', text: JSON.stringify({ ...approvalGateStatus(ctx), context: approvalSafetyContext(state, state.lastStep) }) }
+      }
+      if (value === 'web' || value === 'network') {
+        return { kind: 'success', text: JSON.stringify({ ...webCapabilityStatus(ctx), context: webCapabilityForPlan(state.taskText, state.plan) }) }
+      }
+      return { kind: 'error', text: '用法：/router mode collective、/router mode single、/router plan、/router safety 或 /router web' }
     },
   })
 
@@ -515,7 +572,7 @@ export function apply(ctx) {
       await routerSettingsPromise
       state.taskText = inputText(messages)
       const liveBench = await liveBenchFor(ctx, state)
-      state.plan = buildPlan({
+      const plan = buildPlan({
         text: state.taskText,
         available,
         mode: state.mode,
@@ -526,6 +583,16 @@ export function apply(ctx) {
         cacheReadRatio: routerSettings.cacheReadRatio,
         cacheWriteRatio: routerSettings.cacheWriteRatio,
       })
+      state.plan = {
+        ...plan,
+        web: webCapabilityForPlan(state.taskText, plan),
+        safety: {
+          ...approvalGateStatus(ctx),
+          ...approvalSafetyContext({ ...state, plan }, Number(step)),
+          hardCategories: ['deletion', 'credential', 'remote', 'system', 'bulk'],
+          failSafe: true,
+        },
+      }
       state.collaboration = shouldCollaborate(state.plan, available)
         ? { lastStep: 0, queuedStep: null }
         : null
@@ -538,11 +605,13 @@ export function apply(ctx) {
     const currentStep = Number.isFinite(Number(step)) ? Number(step) : state.lastStep + 1
     const stageContext = stageMessage(state.plan, currentStep)
     const analysisContext = currentStep === 1 ? analysisMessage(state.plan) : null
+    const webContext = currentStep === 1 ? webMessage(state.plan) : null
     const hasPersona = proposed.messages.some(message => message?.content?.some(block => isPersonaPrompt(block?.text)))
     if (hasPersona) state.personaInjected = true
     const personaContext = state.personaInjected ? null : personaMessage(state, agent, currentStep)
     const additions = []
     if (analysisContext !== null && !hasStageMarker(proposed.messages, currentStep)) additions.push(analysisContext)
+    if (webContext !== null && !proposed.messages.some(message => message?.content?.some(block => block?.text === webContext.content[0].text))) additions.push(webContext)
     if (personaContext !== null) {
       additions.push(personaContext)
       state.personaInjected = true

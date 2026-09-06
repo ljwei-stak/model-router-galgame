@@ -25,35 +25,21 @@ import {
 import { createObservable, createHistory, createStorage, loadJSON, saveJSON } from './store.mjs'
 import { catalogSnapshot, selectModelThroughRemote } from './model-directory-bridge.mjs'
 import { DEFAULT_ROUTER_SETTINGS, MODEL_CATALOG, MODEL_ROUTER_SETTINGS_NAMESPACE } from '../shared/router.mjs'
+import { createUpdateApi as createNpmUpdateApi } from './update-api.mjs'
 // 默认预设场景：仓库根 gal-scene.json（编辑器导出的格式，内嵌被引用的素材/字体）。
 import presetScene from '../../gal-scene.json'
 
 export const name = 'gal-view'
 
-const PROJECT_URL = 'https://github.com/ljwei-stak/deepseek-harness'
-const RELEASES_URL = `${PROJECT_URL}/releases`
-const PLUGIN_VERSION = '0.4.12'
+const PLUGIN_VERSION = __MODEL_ROUTER_VERSION__
 
-function createUpdateApi() {
-  const bridge = globalThis.deepSeekHarnessDesktop
-  const openExternal = url => {
-    if (bridge?.openProject && url === PROJECT_URL) return bridge.openProject()
-    globalThis.open?.(url, '_blank', 'noopener,noreferrer')
-    return Promise.resolve()
-  }
-  return {
-    isDesktop: bridge?.isDesktop === true,
-    platform: bridge?.platform ?? 'web',
+function createUpdateApi(ctx) {
+  let connection
+  try { connection = ctx.get?.('connection') ?? ctx.connection } catch { connection = undefined }
+  return createNpmUpdateApi({
+    connectionRpc: connection?.rpc,
     pluginVersion: PLUGIN_VERSION,
-    projectUrl: PROJECT_URL,
-    releasesUrl: RELEASES_URL,
-    check: bridge?.checkForUpdates ? () => bridge.checkForUpdates() : null,
-    installPlugin: bridge?.installPluginUpdate ? () => bridge.installPluginUpdate() : null,
-    installDesktop: bridge?.installDesktopUpdate ? () => bridge.installDesktopUpdate() : null,
-    subscribe: bridge?.onUpdateProgress ? callback => bridge.onUpdateProgress(callback) : null,
-    openProject: () => openExternal(PROJECT_URL),
-    openReleases: () => openExternal(RELEASES_URL),
-  }
+  })
 }
 
 /** Browser settings bridge for the Host-owned model-router namespace. */
@@ -790,8 +776,10 @@ export function apply(ctx) {
     inject: () => ({
       hooks: { enabled: enabledSource },
       setEnabled,
-      updateApi: createUpdateApi(),
+      updateApi: createUpdateApi(ctx),
       pricingApi: createPricingApi(ctx),
     }),
   }, GalViewSettingsTab))
 }
+
+

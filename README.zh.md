@@ -15,21 +15,23 @@
 - **GAL 视窗**：新会话自动形成存档；历史记录保留实际 provider/model，名牌、颜色和立绘随当前模型变化。ERNIE、文心一言和百度 provider/model 标识统一显示 `ERNIE娘` 与 `ernie1.png`。路由分析显示的是可审计摘要，不是模型私有思维链。
 - **Markdown/KaTeX**：复用 Harness 的 `MarkdownText`，支持标题、列表、表格、引用、代码、链接和数学公式；宽表格、代码块和公式在对话框内滚动，玩家输入保持纯文本。
 - **附件与多模态**：图片使用原生多模态管线，Markdown/TXT/JSON/代码文件提取为文本；PDF/DOCX 等二进制文件保留解析状态，不会静默伪造内容。
+- **多任务安全审批适配**：内置 `@ljwei-stak/dsh-approval-gate@0.5.3` 适配。复杂集体任务的每次沙箱升级都会附带工作包、阶段、路由和任务数量上下文；批量任务标记为 `bulk` 风险候选，由审批插件执行 Flash 判定、硬风险人工确认、学习白名单、审计和快照。单独会话不会被路由器强制切换。
+- **联网与反爬窗口**：内置 `@liustack/modsearch@5.10.1` 接管原生 `web_search`，并提供 `read_page`/`x_search`；内置 `@ljwei-stak/dsh-ego-browser@0.8.3` 提供真实 Chrome 窗口、语义树、截图、点击、登录态和验证码检测。ModSearch 抓取失败或遇到动态/反爬页面时，路由指导模型切换到 Ego Browser；检测到人机验证会暂停并让用户在观察窗完成。
 - **OpenCode Zen**：官方站点覆盖会自动恢复模型目录所需的 `/zen`、`/zen/v1` 端点；自定义网关不受影响。
-- **更新与桌面端**：插件设置页提供 GitHub Release 检查和一键更新；客户端过期时更新完整客户端及内置插件，否则只更新插件。网页端无法写入本机文件时会打开 Releases 页面。
+- **插件与桌面端独立更新**：插件设置页通过 npm 官方 registry 检查 `@ljwei-stak/model-router-galgame`，通过官方 [`anywhere-labs/dsh-desktop` Releases](https://github.com/anywhere-labs/dsh-desktop/releases) 检查 DSH Desktop。两者可以分别更新，一键更新会执行所有可用更新；纯网页环境会按所选项目打开 npm 包页或 DSH Desktop Releases 页面。
 
 ## 安装
 
 ### 前置条件
 
-- DeepSeek Harness / DSH Desktop 0.4.8 或更高版本。
+- 已验证目标为 DSH Desktop 2.0.5 或 `@deepseek-ai/dsh@0.1.2-rc.1`；插件内更新控件需要 DSH Desktop 2.0.5 或更高版本。
 - Node.js 22.19 或更高版本（当前 DSH Desktop 使用 Node 24）。
 - Harness 中至少配置一个 LLM provider。
 - 首次安装需要能够访问 npm registry。
 
 ### 推荐方式：安装已发布的 npm 包
 
-这个公开包已经把官方 `@liustack/modlens@3.25.4` 作为依赖和 DSH bundle 一起打包。无需安装 Docker、Python、8000 端口服务，也无需再单独安装 ModLens。
+这个公开包会从 npm registry 安装官方 `@liustack/modlens@3.25.4`、`@ljwei-stak/dsh-approval-gate@0.5.3`、`@liustack/modsearch@5.10.1` 和 `@ljwei-stak/dsh-ego-browser@0.8.3`，同时带上 `schemastery@3.18.0`。Ego Browser 使用 DSH 宿主提供的工具和设置服务。无需克隆 Ego Browser GitHub 仓库，也无需单独安装这些依赖。
 
 1. 在 PowerShell 中进入 DSH Desktop 目录：
 
@@ -74,7 +76,7 @@ pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org "@ljwei-
 4. 检查路由器和它的 ModLens 依赖是否已加入 profile：
 
 ```powershell
-pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens|dsh-approval-gate|modsearch|ego-browser"
 ```
 
 输出中应包含：
@@ -82,6 +84,9 @@ pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modle
 ```text
 @ljwei-stak/model-router-galgame
 @liustack/modlens
+@ljwei-stak/dsh-approval-gate
+@liustack/modsearch
+@ljwei-stak/dsh-ego-browser
 ```
 
 安装本插件后不要再单独添加 `@liustack/modlens`。本插件已经包含官方 ModLens
@@ -90,6 +95,23 @@ bundle。如果以前在同一个 profile 中单独安装过 ModLens，先删除
 
 ```powershell
 pnpm dsh plugin --profile web remove @liustack/modlens
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
+```
+
+`modsearch` 和 `@ljwei-stak/dsh-ego-browser` 也不要在同一 profile 中重复安装。重复条目会造成
+搜索 provider 或浏览器工具重复注册：
+
+```powershell
+pnpm dsh plugin --profile web remove @liustack/modsearch
+pnpm dsh plugin --profile web remove @ljwei-stak/dsh-ego-browser
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
+```
+
+同理，不要在同一个 profile 中再次单独添加 `@ljwei-stak/dsh-approval-gate`。如果以前单独安装过，
+先删除旧条目再安装本插件，避免重复 loader：
+
+```powershell
+pnpm dsh plugin --profile web remove @ljwei-stak/dsh-approval-gate
 pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
@@ -129,10 +151,10 @@ pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersi
 ```
 
 如果需要可复现部署，请把 `$routerVersion` 替换为通过 `npm view` 确认过的具体版本号
-（例如 `0.4.12`）：
+（例如 `0.4.20`）：
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.12
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
 ```
 
 已经安装过插件时，也可以让 pnpm 在当前版本范围内更新：
@@ -142,6 +164,18 @@ pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
 ```
 
 更新后请重启 DSH；Desktop profile 使用同样的命令并把 profile 改为 `desktop`。
+
+设置页的更新控件使用两条相互独立的发布渠道：
+
+| 控件 | 对应行为 |
+|------|----------|
+| **检查更新** | 插件从 `https://registry.npmjs.org/` 检查，完整客户端从 `anywhere-labs/dsh-desktop` 的最新 GitHub Release 检查，两项结果分别显示。 |
+| **仅从 npm 更新插件** | 在 DSH Desktop 中先解析 npm `latest`，再以 `--save-exact` 将解析出的 `@ljwei-stak/model-router-galgame@<确切版本>` 安装到当前 profile；完成后提示完全退出并重启 DSH Desktop。纯网页环境改为打开 [npm 包页面](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame)。 |
+| **仅更新完整客户端** | 交给 DSH Desktop 原生更新器处理，来源是官方 [`anywhere-labs/dsh-desktop` Releases](https://github.com/anywhere-labs/dsh-desktop/releases)。该操作不安装插件，也不代表客户端内含某个插件版本。 |
+| **一键更新插件与客户端** | 按需先更新 npm 插件，再调用完整客户端的原生更新；发现客户端更新时也不会跳过插件更新。 |
+| **查看 npm 包 / 客户端 Releases** | 分别打开插件 npm 包页和官方 DSH Desktop Releases 页面。 |
+
+旧的 `ljwei-stak/deepseek-harness` Release 不再作为任何一项的更新源。
 
 ### 出现加载器或 profile 错误时重新安装
 
@@ -154,10 +188,10 @@ cd F:\DeepSeek_harness\DSH-Desktop
 pnpm dsh plugin --profile web remove @liustack/modlens
 $routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
 pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
-pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens|dsh-approval-gate"
 ```
 
-输出应只显示一条 `modlens` 行和一条 `model-router-galgame` 行。如果报
+输出应只显示一条 `modlens` 行、一条 `dsh-approval-gate` 行和一条 `model-router-galgame` 行。如果报
 `EADDRINUSE` 且端口为 3080，或报 `task-board ledger is already owned by process ...`，
 说明旧的 DSH 进程仍在运行；先关闭旧进程，或换一个端口启动：
 
@@ -193,12 +227,43 @@ pnpm dsh plugin --profile desktop remove @ljwei-stak/model-router-galgame
 - `/router mode collective`
 - `/router mode single`
 - `/router plan`
+- `/router safety`：查看审批适配版本、当前阶段、任务数量、活动路由和风险候选。
+- `/router web`：查看 ModSearch/Ego Browser 版本、服务探测状态和当前联网策略。
 
 默认模式为 `collective`。系统只公开任务分类、评分、分配、费用和回退记录，不输出任何模型私有思维链。
 
+### 审批与多任务安全策略
+
+安装后，profile 的 bundle 会同时加载 `@ljwei-stak/dsh-approval-gate`。要启用其自动审批学习模式，
+请在 profile 的权限预设中选择目标插件提供的 `auto-approve`；默认 `ask` 策略仍然由
+Harness 原生审批界面处理。路由器不会改变审批结论，只会在 `approval/request` 进入瀑布
+前补充安全上下文：
+
+- 复杂集体任务（至少 3 个工作包）标记 `risk_candidate=bulk`，每个阶段单独审计。
+- 删除、凭据、远程、系统和批量风险由 `@ljwei-stak/dsh-approval-gate` 永久要求人工确认。
+- Flash 超时、异常、输出无法解析或同类验证失败时，按 fail-safe 转人工。
+- 单独会话保留原生模型和审批行为，不会被集体路由计划覆盖。
+
+审计、学习和快照沿用目标项目的目录：`%DSH_HOME%\auto-approve\`（未设置
+`DSH_HOME` 时为 `%USERPROFILE%\.dsh\auto-approve\`），包括 `events.jsonl`、
+`audit.log`、`allowlist.json`、`learning.json` 和 `snapshots\`。如需确认桥接状态，
+在会话中运行 `/router safety`。
+
+### 联网和反爬页面
+
+普通搜索和页面阅读由 ModSearch 处理，结果带有来源 URL、不确定性和抓取警告。需要
+登录态、JavaScript 动态渲染、验证码或 Cloudflare/Turnstile 的页面由 Ego Browser
+接管。模型应按以下顺序工作：`ego_space_open` → `ego_navigate` → `ego_page_info`/
+`ego_captcha` → `ego_snapshot`/`ego_screenshot`；需要交互时使用 `ego_click`、
+`ego_fill` 或 `ego_wait*`。检测到 `humanCheck=true` 后，当前工作包会暂停，用户在
+“Agent 浏览器”观察窗完成验证，确认后再继续。系统不会尝试绕过验证码或伪造结果。
+
+在 Web profile 中，Ego Browser 会注册 `/api/ego/*` 观察窗路由；若安装了
+`dsh-better-sidebar`，观察窗显示为“Agent 浏览器”侧边栏 Tab，否则显示浮动观察窗。
+
 ## 数学路由模型
 
-本节按照 `RESEARCH_PAPER_FRAMEWORK.md` 的论文框架，完整说明当前 `0.4.12`
+本节按照 `RESEARCH_PAPER_FRAMEWORK.md` 的论文框架，完整说明当前 `0.4.20`
 实现。生产路由器与离线实验插件共用质量下限、费用模型、目标函数和回退语义；
 生产实现进一步加入 Pareto 剪枝与有界全局搜索，因此不再是互相独立的逐阶段局部贪心。
 
@@ -470,4 +535,7 @@ GAL 交互方式参考 [`Ayase34/gal-view`](https://github.com/Ayase34/gal-view)
 
 ## 桌面端
 
-仓库根目录 `desktop/` 提供服务器端/本地运行模式切换和 Windows 打包配置。桌面窗口、启动器与 Windows 安装包使用 `DeepSeek_Harness娘.avif` 生成的方形图标。插件源码、设置 schema 和构建脚本均保留在仓库，安装包通过项目 Release 发布。
+DSH Desktop 与本插件分别发布、分别确定版本。完整客户端从官方 [`anywhere-labs/dsh-desktop` Releases](https://github.com/anywhere-labs/dsh-desktop/releases) 更新；插件从 npm 官方 registry 更新 `@ljwei-stak/model-router-galgame`，必须独立检查和安装。
+
+
+

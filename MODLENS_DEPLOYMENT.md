@@ -6,11 +6,12 @@
 
 ## 安装到 DeepSeek Harness
 
-ModLens 3.25.4 是原生 DSH bundle。发布后的 Model Router 包会自动安装它：
+ModLens 3.25.4 是原生 DSH bundle。公开的 Model Router npm 包会自动安装它：
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+pnpm config set registry https://registry.npmjs.org/
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.20
 ```
 
 安装结果位于对应的 `F:\DeepSeek_harness\.dsh\profiles\<profile>` 目录，

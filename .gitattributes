@@ -1,0 +1,12 @@
+# Keep published files byte-for-byte identical to the npm tarball on all OSes.
+/.dsh-plugin/client.js -text
+/.dsh-plugin/index.mjs -text
+/.dsh-plugin/shared/*.mjs -text
+/package.json -text
+/cordis.patch.yml -text
+/README.md -text
+/README.zh.md -text
+/README.i18n.yaml -text
+/INSTALLATION_GUIDE.zh.md -text
+/MODLENS_DEPLOYMENT.md -text
+/LICENSE -text

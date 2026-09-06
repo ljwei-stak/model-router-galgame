@@ -6,13 +6,13 @@ function item(available, installable, reason = '') {
   return { available, installable, reason }
 }
 
-test('one-click update prefers the full client because it contains the plugin', () => {
+test('one-click update plans npm plugin and full client as independent steps', () => {
   const selected = selectUnifiedUpdate({
     plugin: item(true, true),
     desktop: item(true, true),
   })
-  assert.equal(selected.kind, 'desktop')
-  assert.match(selected.reason, /包含同版本插件/)
+  assert.deepEqual(selected.steps, ['plugin', 'desktop'])
+  assert.match(selected.reason, /npm 插件、完整客户端/)
 })
 
 test('one-click update installs only the plugin when the client is current', () => {
@@ -20,7 +20,7 @@ test('one-click update installs only the plugin when the client is current', () 
     plugin: item(true, true),
     desktop: item(false, false, '已是最新版'),
   })
-  assert.equal(selected.kind, 'plugin')
+  assert.deepEqual(selected.steps, ['plugin'])
 })
 
 test('one-click update reports incompatible available releases', () => {
@@ -28,7 +28,7 @@ test('one-click update reports incompatible available releases', () => {
     plugin: item(true, false, '需要更高版本运行时'),
     desktop: item(false, false),
   })
-  assert.equal(selected.kind, null)
+  assert.deepEqual(selected.steps, [])
   assert.match(selected.reason, /更高版本运行时/)
 })
 
@@ -37,6 +37,15 @@ test('one-click update is a no-op when both components are current', () => {
     plugin: item(false, false),
     desktop: item(false, false),
   })
-  assert.equal(selected.kind, null)
+  assert.deepEqual(selected.steps, [])
   assert.match(selected.reason, /均已是最新版/)
+})
+
+test('one-click update runs installable work and reports blocked work', () => {
+  const selected = selectUnifiedUpdate({
+    plugin: item(true, true),
+    desktop: item(true, false, '当前平台不支持客户端自动更新'),
+  })
+  assert.deepEqual(selected.steps, ['plugin'])
+  assert.deepEqual(selected.blocked, ['当前平台不支持客户端自动更新'])
 })

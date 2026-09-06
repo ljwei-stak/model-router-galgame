@@ -15,21 +15,23 @@ This plugin installs on an original DeepSeek Harness checkout. It adds a cost-aw
 - **GAL view** turns each new conversation into an archive. Every line retains its actual provider/model, so the nameplate, color, and portrait follow the active model. ERNIE, Wenxin, and Baidu provider/model identifiers consistently select `ERNIE娘` and `ernie1.png`. The route explanation is an auditable summary, not private model chain-of-thought.
 - **Markdown/KaTeX** reuses Harness `MarkdownText` for headings, lists, tables, quotes, code, links, and formulas. Wide content scrolls inside the dialogue box; player input remains plain text.
 - **Attachments and multimodality** use the native image pipeline and extract Markdown/TXT/JSON/code as text. PDF/DOCX and other binary files keep an explicit parsing state rather than silently inventing content.
+- **Multi-task safety approval adapter** bundles `@ljwei-stak/dsh-approval-gate@0.5.3`. Every sandbox escalation in a complex collective task carries the work package, stage, route, and task-count context; multi-task work is marked as a `bulk` risk candidate for Flash classification, hard-risk human review, learning, audit, and snapshots. Single-session mode is never forcibly rerouted.
+- **Web search and anti-bot browsing** bundle `@liustack/modsearch@5.10.1` and `@ljwei-stak/dsh-ego-browser@0.8.3`. ModSearch handles `web_search`, `read_page`, and `x_search`; Ego Browser opens a real Chrome/Edge window for JavaScript pages, login state, screenshots, and human verification. Search failures and anti-bot pages are routed to the visible browser flow.
 - **OpenCode Zen compatibility** repairs official website overrides to the catalog-owned `/zen` and `/zen/v1` endpoints while leaving custom gateways untouched.
-- **Release updates and desktop support** provide release checks and a one-click updater. When the desktop is outdated it updates the full client and bundled plugin; otherwise it updates only the plugin. Browser-only installs open Releases because they cannot write local files.
+- **Independent plugin and desktop updates** check `@ljwei-stak/model-router-galgame` against the official npm registry and DSH Desktop against the official [`anywhere-labs/dsh-desktop` Releases](https://github.com/anywhere-labs/dsh-desktop/releases). Either component can be updated on its own, while the one-click action runs every available update. Browser-only installs open the npm package page or the DSH Desktop Releases page for the selected component.
 
 ## Installation
 
 ### Requirements
 
-- DeepSeek Harness / DSH Desktop 0.4.8 or newer.
+- Verified targets: DSH Desktop 2.0.5 or `@deepseek-ai/dsh@0.1.2-rc.1`. The in-app update controls require DSH Desktop 2.0.5 or newer.
 - Node.js 22.19 or newer (the current DSH Desktop release uses Node 24).
 - At least one LLM provider configured in Harness.
 - A network connection to the npm registry for the first installation.
 
 ### Recommended: install the published npm package
 
-The package is public and already includes the official `@liustack/modlens@3.25.4` bundle. You do not need to install Docker, Python, a ModLens server, or a second ModLens package.
+The package is public and already includes the official `@liustack/modlens@3.25.4`, `@ljwei-stak/dsh-approval-gate@0.5.3`, `@liustack/modsearch@5.10.1`, and the registry package `@ljwei-stak/dsh-ego-browser@0.8.3` plus `schemastery@3.18.0`. Ego Browser uses the tools and settings services supplied by the DSH host. You do not need to clone the Ego Browser GitHub repository or install these dependencies separately.
 
 1. Open PowerShell in the DSH Desktop checkout:
 
@@ -75,7 +77,7 @@ pnpm dsh plugin --profile web add --registry=https://registry.npmjs.org "@ljwei-
 4. Verify that the router and its ModLens dependency are present:
 
 ```powershell
-pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens|dsh-approval-gate|modsearch|ego-browser"
 ```
 
 The output should contain:
@@ -83,6 +85,9 @@ The output should contain:
 ```text
 @ljwei-stak/model-router-galgame
 @liustack/modlens
+@ljwei-stak/dsh-approval-gate
+@liustack/modsearch
+@ljwei-stak/dsh-ego-browser
 ```
 
 Do not add `@liustack/modlens` separately after installing this package. The
@@ -92,6 +97,23 @@ then reinstall the router:
 
 ```powershell
 pnpm dsh plugin --profile web remove @liustack/modlens
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
+```
+
+Do not add `@ljwei-stak/dsh-approval-gate` separately to the same profile. If it was previously installed as a standalone entry, remove it before reinstalling the router to avoid a duplicate loader:
+
+```powershell
+pnpm dsh plugin --profile web remove @ljwei-stak/dsh-approval-gate
+pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
+```
+
+Do not add `@liustack/modsearch` or `@ljwei-stak/dsh-ego-browser` separately either. If either
+was installed before the router, remove the standalone entries and reinstall the
+router once so each loader is registered exactly once:
+
+```powershell
+pnpm dsh plugin --profile web remove @liustack/modsearch
+pnpm dsh plugin --profile web remove @ljwei-stak/dsh-ego-browser
 pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
 ```
 
@@ -112,7 +134,7 @@ the old process has released its profile lock:
 pnpm dsh web --no-open --port 3081
 ```
 
-### Verify ModLens
+### Verify bundled capabilities
 
 Run the diagnostic from the installed Web profile (the command is forwarded to
 the profile's installed binary):
@@ -122,6 +144,15 @@ pnpm dsh plugin --profile web exec modlens doctor
 ```
 
 Configure the vision provider in the DSH settings page or in `C:\Users\<your-user>\.modlens\config.json`. Then create a conversation, upload an image, and ask the model to transcribe or explain it. Text-only models appear with a `(modlens vision)` entry when a compatible upstream route is available.
+
+For ordinary web questions, ask for current sources or use the native `web_search`
+tool; the bundle routes it through ModSearch. For a JavaScript, login, Cloudflare,
+Turnstile, or other anti-bot page, the router provides the Ego Browser sequence:
+`ego_space_open` -> `ego_navigate` -> `ego_page_info`/`ego_captcha` ->
+`ego_snapshot`/`ego_screenshot`. When `humanCheck=true`, the current work package
+pauses and the user completes the check in the Agent Browser observation window.
+The router never fabricates a successful verification. Use `/router web` to inspect
+the bundled versions and whether the Host services are detected.
 
 ### Update
 
@@ -133,10 +164,10 @@ pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersi
 ```
 
 For a reproducible deployment, replace `$routerVersion` with a concrete version
-that you have verified with `npm view` (for example `0.4.12`):
+that you have verified with `npm view` (for example `0.4.20`):
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.12
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
 ```
 
 You can also ask pnpm to update an already-installed package within its declared
@@ -147,6 +178,18 @@ pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
 ```
 
 Restart DSH after updating. Repeat the same command with `--profile desktop` for the desktop profile.
+
+The settings-page update controls use two independent distribution channels:
+
+| Control | Behavior |
+|---------|----------|
+| **Check for updates** | Checks the plugin through `https://registry.npmjs.org/` and the client through the latest official `anywhere-labs/dsh-desktop` GitHub Release. Each result is reported independently. |
+| **Update only the plugin from npm** | In DSH Desktop, resolves npm `latest`, installs that exact `@ljwei-stak/model-router-galgame@<version>` into the current profile with `--save-exact`, then asks you to fully exit and restart DSH Desktop. In a browser-only session, it opens the [npm package page](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame). |
+| **Update only the full client** | Hands control to the native DSH Desktop updater, which uses the official [`anywhere-labs/dsh-desktop` Releases](https://github.com/anywhere-labs/dsh-desktop/releases). It does not install or imply any particular plugin version. |
+| **Update plugin and client** | Updates the npm plugin first when needed, then invokes the native client update when needed. A desktop update never suppresses an available plugin update. |
+| **View npm package / Client Releases** | Opens the npm package page for the plugin or the official DSH Desktop Releases page for the client. |
+
+The old `ljwei-stak/deepseek-harness` Release feed is not an update source for either component.
 
 ### Clean reinstall after a loader or profile error
 
@@ -159,10 +202,11 @@ cd F:\DeepSeek_harness\DSH-Desktop
 pnpm dsh plugin --profile web remove @liustack/modlens
 $routerVersion = npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
 pnpm dsh plugin --profile web add "@ljwei-stak/model-router-galgame@$routerVersion"
-pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens"
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|modlens|dsh-approval-gate|modsearch|ego-browser"
 ```
 
-The dump should show one `modlens` row and one `model-router-galgame` row. If the
+The dump should show one row for each of `modlens`, `dsh-approval-gate`, `modsearch`,
+`ego-browser`, and `model-router-galgame`. If the
 error is `EADDRINUSE` on port 3080, or `task-board ledger is already owned by
 process ...`, an old DSH process is still running; close that process before
 starting another instance, or choose another port:
@@ -199,8 +243,33 @@ If no model is available, native model selection remains intact and the conversa
 - `/router mode collective`
 - `/router mode single`
 - `/router plan`
+- `/router safety`: show the approval adapter version, current stage, task count, active route, and risk candidate.
+- `/router web`: show ModSearch/Ego Browser versions, service detection, and the current web strategy.
 
 `collective` is the default. The plugin exposes task labels, scores, assignments, costs, and fallback records; it never exposes private model chain-of-thought.
+
+### Approval and multi-task safety
+
+The bundle loads `@ljwei-stak/dsh-approval-gate` together with the router. To enable its learning-based auto-approval mode, select the target plugin's `auto-approve` permission preset in the profile; the default `ask` policy continues to use the native Harness approval UI. The router does not decide approval outcomes. It only adds safety context before `approval/request` enters the waterfall:
+
+- Complex collective tasks with at least three work packages carry `risk_candidate=bulk`, and each stage is audited separately.
+- Deletion, credential, remote, system, and bulk risks remain human-only in `@ljwei-stak/dsh-approval-gate`.
+- Flash timeout, errors, unparseable output, or failed similarity checks fail safe to a human review.
+- Single-session mode keeps the native model and approval behavior.
+
+Audit, learning, and snapshots use the target project's directory: `%DSH_HOME%\auto-approve\` (or `%USERPROFILE%\.dsh\auto-approve\` when `DSH_HOME` is unset), including `events.jsonl`, `audit.log`, `allowlist.json`, `learning.json`, and `snapshots\`. Run `/router safety` to inspect the bridge state.
+
+### Web and anti-bot pages
+
+ModSearch supplies ordinary web search and page reading, including source URLs and
+fetch warnings. Pages that require login state, JavaScript rendering, or a visible
+human check use Ego Browser. The model should open a browser space, navigate to the
+URL, inspect `ego_page_info` or `ego_captcha`, and then collect evidence with
+`ego_snapshot`, `ego_read_element`, `ego_screenshot`, or `ego_http(browser)`. Use
+`ego_click`, `ego_fill`, and `ego_wait*` only when interaction is required. A
+`humanCheck=true` result pauses the current work package until the user completes
+the check in the Agent Browser window. Captcha and Cloudflare checks are never
+bypassed or represented as successful without user confirmation.
 
 ## Mathematical routing model
 
@@ -510,4 +579,7 @@ The GAL interaction is inspired by [`Ayase34/gal-view`](https://github.com/Ayase
 
 ## Desktop application
 
-The root `desktop/` directory provides server/local mode selection and Windows packaging. The desktop window, launcher, and Windows installer use the square icon derived from `DeepSeek_Harness娘.avif`. Source, settings schema, and reproducible build scripts remain in the repository; installers are published through the project Releases.
+DSH Desktop is versioned and distributed separately from this plugin. Full-client updates use the official [`anywhere-labs/dsh-desktop` Releases](https://github.com/anywhere-labs/dsh-desktop/releases); plugin updates use the official npm package `@ljwei-stak/model-router-galgame` and must be checked and installed independently.
+
+
+

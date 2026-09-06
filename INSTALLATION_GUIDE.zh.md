@@ -25,7 +25,7 @@
 dsh version
 
 # 预期输出示例：
-# DeepSeek Harness v0.4.8 或更高版本
+# 已验证：@deepseek-ai/dsh 0.1.2-rc.1；桌面端使用 DSH Desktop 2.0.5+
 ```
 
 **如果未安装 Harness**，请先安装：
@@ -78,17 +78,27 @@ sudo mv dsh /usr/local/bin/
 
 ## 2. 下载插件
 
-### 方法1: Git 克隆（推荐）
+### 方法1: npm registry 安装（推荐）
+
+插件已经发布为公开 npm 包。直接安装时不需要克隆仓库：
+
+```powershell
+pnpm config set registry https://registry.npmjs.org/
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.20
+```
+
+### 方法2: Git 克隆（仅源码开发）
 
 ```bash
 # 克隆插件仓库
-git clone https://github.com/your-repo/model-router-galgame.git
+git clone https://github.com/ljwei-stak/model-router-galgame.git
 
 # 进入插件目录
 cd model-router-galgame
 ```
 
-### 方法2: 下载压缩包
+### 方法3: 下载压缩包（仅源码开发）
 
 1. 访问项目 GitHub Release 页面
 2. 下载最新版本的 `model-router-galgame.zip`
@@ -103,7 +113,7 @@ unzip model-router-galgame.zip -d ~/harness-plugins/
 cd ~/harness-plugins/model-router-galgame
 ```
 
-### 方法3: 直接使用现有目录
+### 方法4: 直接使用现有目录（仅源码开发）
 
 如果你已经有插件文件（如本次适配工作的目录）：
 
@@ -134,14 +144,15 @@ model-router-galgame/
 
 ### 步骤2: 执行安装命令
 
-如果插件已经发布到 npm，直接使用包名安装：
+插件已发布到 npm，直接使用公开包名安装（推荐）：
 
 ```powershell
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.10
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.10
+pnpm config set registry https://registry.npmjs.org/
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.20
 ```
 
-其中 `@0.4.10` 可以替换为目标版本号。官方 ModLens 依赖会自动解析，无需另行安装。
+其中 `@0.4.20` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch 和 Ego Browser 依赖会自动解析，无需另行安装。
 
 如果正在本地开发，再使用目录安装：
 
@@ -158,7 +169,7 @@ dsh plugin --profile web add /path/to/model-router-galgame
 
 **预期输出**：
 ```
-✓ Plugin 'model-router-galgame' added to profile 'web'
+✓ Plugin '@ljwei-stak/model-router-galgame' added to profile 'web'
 ```
 
 ### 步骤3: 验证插件已安装
@@ -168,7 +179,7 @@ dsh plugin --profile web add /path/to/model-router-galgame
 dsh plugin --profile web list
 
 # 预期输出包含：
-# model-router-galgame@0.4.10
+# @ljwei-stak/model-router-galgame@0.4.20
 ```
 
 ### 步骤4: 重启 Harness
@@ -458,9 +469,10 @@ dsh logs
 ls -la /path/to/model-router-galgame
 # 确保文件可读
 
-# 4. 重新安装插件
-dsh plugin --profile web remove model-router-galgame
-dsh plugin --profile web add /path/to/model-router-galgame
+# 4. 从 npm registry 重新安装插件
+pnpm config set registry https://registry.npmjs.org/
+dsh plugin --profile web remove @ljwei-stak/model-router-galgame
+dsh plugin --profile web add @ljwei-stak/model-router-galgame@latest
 dsh restart
 ```
 
@@ -658,7 +670,7 @@ export const OBJECTIVE_WEIGHTS = Object.freeze({
 
 ```bash
 # 1. 移除插件
-dsh plugin --profile web remove model-router-galgame
+dsh plugin --profile web remove @ljwei-stak/model-router-galgame
 
 # 2. 重启 Harness
 dsh restart
@@ -669,17 +681,41 @@ rm -rf /path/to/model-router-galgame
 
 ---
 
-## 10. 更新插件
+## 10. 更新插件与完整客户端
 
-### 方法1: Git 更新
+### 设置页更新控件
+
+插件和 DSH Desktop 使用不同的版本号与发布渠道，设置页不再把两者视为同一个 Release：
+
+| 控件 | 更新来源与行为 |
+|------|----------------|
+| **检查更新** | 独立检查 npm 官方 registry 上的 `@ljwei-stak/model-router-galgame` 和 [`anywhere-labs/dsh-desktop` 最新 Release](https://github.com/anywhere-labs/dsh-desktop/releases)。其中一项检查失败时，另一项结果仍然有效。 |
+| **仅从 npm 更新插件** | DSH Desktop 先解析 npm `latest`，再在当前 profile 中以 `--save-exact` 添加解析出的 `@ljwei-stak/model-router-galgame@<确切版本>`，并指定 `https://registry.npmjs.org/`。完成后完全退出并重启 DSH Desktop。 |
+| **仅更新完整客户端** | 调用 DSH Desktop 原生更新器检查并安装官方客户端 Release，不会顺带安装或替代 npm 插件。 |
+| **一键更新插件与客户端** | 按需先安装 npm 插件，再调用完整客户端原生更新；两项都可用时两项都会执行。 |
+| **查看 npm 包 / 客户端 Releases** | 分别打开 [插件 npm 页面](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) 和 [官方客户端 Releases](https://github.com/anywhere-labs/dsh-desktop/releases)。纯网页环境不能写入本机时也使用这两个入口。 |
+
+`ljwei-stak/deepseek-harness` Release 不再是插件或完整客户端的统一更新源，完整客户端安装包也不代表已经包含同版本插件。
+
+### 命令行从 npm registry 更新插件（推荐）
+
+```powershell
+pnpm config set registry https://registry.npmjs.org/
+pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
+pnpm dsh plugin --profile desktop update @ljwei-stak/model-router-galgame
+pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|dsh-approval-gate"
+```
+
+### Git 更新插件（仅源码开发）
 
 ```bash
 cd /path/to/model-router-galgame
 git pull origin main
+dsh plugin --profile web add .
 dsh restart
 ```
 
-### 方法2: 手动更新
+### 手动更新插件
 
 1. 下载新版本
 2. 备份旧版本配置
@@ -716,9 +752,9 @@ dsh restart
 
 ### ✅ 安装完成检查清单
 
-- [ ] DeepSeek Harness 已安装（v0.4.8+）
-- [ ] 插件已下载到本地
-- [ ] 插件已通过 `dsh plugin add` 安装
+- [ ] 已安装 DSH Desktop 2.0.5+，或已验证的 `@deepseek-ai/dsh@0.1.2-rc.1`
+- [ ] 已从 npm registry 安装 `@ljwei-stak/model-router-galgame`
+- [ ] 插件已通过 `dsh plugin --profile <name> add` 安装
 - [ ] Harness 已重启
 - [ ] DeepSeek provider 已配置
 - [ ] API Key 已添加
@@ -743,5 +779,5 @@ dsh restart
 
 **文档版本**: 1.0  
 **更新日期**: 2026-09-01  
-**适用插件版本**: 0.4.10  
-**适用 Harness 版本**: 0.4.8+
+**适用插件版本**: 0.4.20  
+**已验证宿主版本**: DSH Desktop 2.0.5 / `@deepseek-ai/dsh@0.1.2-rc.1`

@@ -10,7 +10,16 @@ const HARNESS = resolve(ROOT, '../DSH-Desktop')
 const UI_PRIMITIVES = join(HARNESS, 'packages', 'client', 'ui-primitives', 'lib', 'index.js')
 const ENTRY = '.dsh-plugin/client/index.mjs'
 const OUTPUT = join(ROOT, '.dsh-plugin', 'client.js')
-const PLUGIN_ID = 'model-router-galgame'
+const PACKAGE = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+const PLUGIN_ID = PACKAGE.name
+const PLUGIN_VERSION = PACKAGE.version
+
+if (typeof PLUGIN_ID !== 'string' || PLUGIN_ID.length === 0) {
+  throw new Error('package.json must define a non-empty name for the client loader id')
+}
+if (typeof PLUGIN_VERSION !== 'string' || PLUGIN_VERSION.length === 0) {
+  throw new Error('package.json must define a non-empty version for the client bundle')
+}
 
 function resolveEsbuildBin() {
   // pnpm's Windows layout exposes the native binary as `esbuild` (without
@@ -77,6 +86,7 @@ export function generate({ check = false } = {}) {
     ENTRY, '--bundle', '--format=cjs', '--platform=browser', '--target=es2020',
     '--external:react', '--jsx=transform', '--jsx-factory=React.createElement',
     '--jsx-fragment=React.Fragment', '--loader:.png=dataurl', '--loader:.woff2=dataurl', '--loader:.woff=dataurl', '--loader:.ttf=dataurl',
+    '--define:__MODEL_ROUTER_VERSION__=' + JSON.stringify(PLUGIN_VERSION),
     '--outfile=' + tempOut,
   ]
   // The source checkout is a sibling of this plugin, so pnpm's workspace
