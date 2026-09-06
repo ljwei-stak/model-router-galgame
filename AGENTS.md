@@ -18,5 +18,8 @@
   as validation. The current build requires the sibling DSH-Desktop checkout.
 - Keep the release's `v<version>` tag on its verified source commit. Never move
   an existing tag or force-push over concurrent work.
+- Create or update the published GitHub Release for that tag, with release
+  notes and the verified npm tarball. A pushed tag alone is not a GitHub Release.
+  Verify the public release page and its assets before reporting completion.
 - Preserve published file bytes, including line endings, and verify the final
   GitHub checkout against npm after pushing.
