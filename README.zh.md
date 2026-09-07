@@ -4,7 +4,7 @@
 
 适用于 DeepSeek Harness / DSH Desktop 的模型路由与 GAL 对话插件。它把任务分配、费用估算、模型角色对话、联网工具和审批适配整合为一个 npm 插件包，需要在已有的 DSH 宿主中使用。
 
-**当前发布版本：0.4.20** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**当前发布版本：0.4.21** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## 功能介绍
 
@@ -25,6 +25,17 @@
 - AI 回复支持 Markdown 和 KaTeX。宽表格、公式和代码可在对话区域内滚动；不完整或不兼容的 Markdown 会回退为纯文本，用户输入保持纯文本。
 - 图片支持 PNG、JPEG、WebP 和 GIF，使用宿主附件流程，并通过兼容的 ModLens 路由辅助文本模型理解图片。Markdown、TXT、JSON 和代码文件可作为文本输入，单个文本文件上限为 4 MB；**PDF/DOCX 等二进制文件需要先转换为 Markdown/TXT**，当前 GAL 附件入口不会直接解析其正文。
 
+### 剧情模式与自由模式
+
+在已有 Harness 会话中打开 **“GAL视窗 → GAL游戏”**，即可直接在视窗内游玩；原有会话与场景编辑入口仍可使用。
+
+- **剧情模式**：无需调用模型 API 的中文固定剧本，包含 1,111 个节点、28 处选择、角色事件、分支、5 个结局和 5 条后日谈。14 位模型娘均有多次出场与专属事件，一条完整路线约 2.27 万字。
+- **自由模式**：玩家自行打字，由 Harness 中配置的模型生成回应。互动会影响好感度与信任，既可增加也可降低，并影响关系发展后的回应。正常游玩隐藏关系数值、判定详情与推进条件，开发调试默认关闭。
+- **角色美术**：14 位角色各有独立美术对话框，DeepSeek 保留原框并配有五种生成的表情差分。场景背景暂用空白与文字描述占位。
+- **游玩与存档**：剧情模式支持自动播放、历史回看、三个手动存档槽、JSON 导入/导出与重新开始；剧情和自由模式分别保存。已有短篇剧情存档继续原来的故事，请先存档或导出，再在 **“设置 → 重新开始剧情”** 进入扩展篇。
+
+剧情模式不需要配置模型凭据；自由模式需要可用模型连接。对话框与表情素材已经随插件提供，游玩不需要图片 API。
+
 ### 联网、浏览器与审批
 
 - **ModSearch**：通过 bundle 将原生 `web_search` 接入 ModSearch，并提供 `read_page` / `x_search`。
@@ -36,7 +47,7 @@
 
 “GAL 视窗 → 项目更新”分别检查插件 npm 版本和官方 DSH Desktop 版本。支持“仅更新 npm 插件”“仅更新完整客户端”和“一键更新插件与客户端”。桌面端插件安装通过已认证的宿主连接执行，成功后需要完全退出并重启 DSH Desktop。
 
-普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.20` 与 DSH Desktop 的版本号相互独立。
+普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.21` 与 DSH Desktop 的版本号相互独立。
 
 ## 安装
 
@@ -47,7 +58,7 @@
 | 已安装 DSH Desktop | 已验证 DSH Desktop 2.0.5。Windows / macOS 使用设置页的“打开 DSH 终端”；没有该入口时按下方 CLI 方式指定实际 profile。 |
 | Harness Web / CLI | 已验证 `@deepseek-ai/dsh@0.1.2-rc.1`。需要可用的 `dsh` 与 `pnpm`，使用明确的 `--profile`。 |
 | Node.js | 插件声明 `>=22.19`；上述官方 CLI 要求 `^22.19.0` 或 `>=24.0.0`，建议 Node.js 24。桌面端优先使用其内置运行时。 |
-| 模型与网络 | 至少配置一个可用的模型 provider；安装时能访问 `https://registry.npmjs.org/`。 |
+| 模型与网络 | 路由、AI 对话与自由模式至少需要一个可用的模型 provider；剧情模式不需要模型 API。安装时能访问 `https://registry.npmjs.org/`。 |
 
 仅安装本 npm 包不会安装 DSH Desktop、模型服务或浏览器程序。尚未安装桌面端时，先从 [DSH Desktop 官方 Releases](https://github.com/anywhere-labs/dsh-desktop/releases) 获取客户端。
 
@@ -58,7 +69,7 @@
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.20
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
 ```
 
 3. 安装成功后，使用桌面端的重启入口，或从托盘明确退出后重新打开，仍选择刚才的 profile。仅关闭窗口可能只是隐藏应用。
@@ -73,7 +84,7 @@ dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/m
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.20
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
 dsh --profile web --dump-config
 ```
 
@@ -97,9 +108,9 @@ dsh --dump-config
 
 Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含以下五个插件，且没有重复 loader ID。配置导出不能替代实际启动验证；只需安装 Router 聚合包，依赖和 bundle 条目会自动加入。
 
-| 插件 | 0.4.20 固定依赖版本 | 用途 |
+| 插件 | 0.4.21 固定依赖版本 | 用途 |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.20` | 路由、GAL 视窗和更新入口 |
+| `@ljwei-stak/model-router-galgame` | `0.4.21` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
 | `@liustack/modlens` | `3.25.4` | 兼容路由的图片理解 |
 | `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
@@ -110,6 +121,8 @@ Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含
 在 DSH 中新建会话，确认有 **“GAL视窗”** 标签。若没有，先确认 profile 正确、已重启宿主，并检查设置中的“启用 GAL 视窗”。
 
 ## 首次使用
+
+只玩剧情时，直接打开 **“GAL视窗 → GAL游戏 → 剧情模式”**，无需模型 API。以下步骤用于配置原有路由与 AI 对话，自由模式也使用宿主的模型配置。
 
 1. 在宿主“设置 → 模型”里配置 provider 和凭据，先确认普通对话能正常回答，不要求使用特定模型厂商。
 2. 打开“GAL视窗”。要手动选择模型，执行 `/router mode single`；要由插件分配任务，执行 `/router mode collective`。
@@ -176,7 +189,7 @@ Web / CLI 使用 `dsh plugin --profile web remove @ljwei-stak/model-router-galga
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.20
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
 ```
 
 Web / CLI 在两条命令的 `plugin` 后加 `--profile web`。其他重复依赖按实际报错处理，不要一次删除全部插件。没有重复条目时不需要执行这些移除命令。
@@ -196,8 +209,8 @@ dsh plugin add /absolute/path/to/model-router-galgame
 
 ## 数学路由模型
 
-本节按照 `RESEARCH_PAPER_FRAMEWORK.md` 的论文框架，完整说明当前 `0.4.20`
-实现。生产路由器与离线实验插件共用质量下限、费用模型、目标函数和回退语义；
+本节按照 `RESEARCH_PAPER_FRAMEWORK.md` 的论文框架，完整说明沿用自 `0.4.20`
+的路由实现。生产路由器与离线实验插件共用质量下限、费用模型、目标函数和回退语义；
 生产实现进一步加入 Pareto 剪枝与有界全局搜索，因此不再是互相独立的逐阶段局部贪心。
 
 ### 1. 问题定义

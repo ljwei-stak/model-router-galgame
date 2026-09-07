@@ -146,7 +146,7 @@ function PropertiesPanel({ el, api, scene, assetsMap, fontsMap }) {
               <option value="settings">设置</option>
             </select>
           </label>
-          <p className="gv-settings-hint">游戏模式中点击触发绑定功能；「自动」按钮会随开关状态高亮。文本/样式照常自定义。</p>
+          <p className="gv-settings-hint">对话模式中点击触发绑定功能；「自动」按钮会随开关状态高亮。文本/样式照常自定义。</p>
         </>
       )}
       {el.type === 'speaker-name' && (

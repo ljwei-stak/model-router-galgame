@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, and approval integration in one npm package, and runs inside an existing DSH host.
 
-**Current release: 0.4.20** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**Current release: 0.4.21** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## Features
 
@@ -25,6 +25,17 @@ Costs and quality scores are routing estimates, not provider bills or guarantees
 - AI replies support Markdown and KaTeX. Wide tables, formulas, and code scroll within the dialogue area. Incomplete or incompatible Markdown falls back to plain text, and user input stays plain text.
 - PNG, JPEG, WebP, and GIF images use the host attachment pipeline, with compatible ModLens routes helping text models understand images. Markdown, TXT, JSON, and code files can be supplied as text, with a 4 MB limit per text file. **Binary files such as PDF/DOCX must first be converted to Markdown/TXT**; the current GAL attachment input does not parse their contents directly.
 
+### Story and free-play modes
+
+Open **"GAL视窗 → GAL游戏" (GAL view → GAL game)** in an existing Harness conversation. The game runs inside that view alongside the original conversation and scene editor.
+
+- **Story mode** is an authored Chinese-language galgame that makes no model API calls. Its 1,111 nodes, 28 choices, character events, branches, five endings, and five epilogues give all 14 model characters recurring appearances. One complete route contains about 22,700 Chinese characters.
+- **Free mode** accepts your own typed dialogue and uses a model configured in Harness to generate replies. Interactions can increase or decrease affection and trust, changing the character's responses as the relationship develops. Relationship values, evaluation details, and progression conditions are hidden during normal play; development debug is off by default.
+- All 14 characters have distinct illustrated dialogue frames. DeepSeek retains the original frame and has five generated expression variants. Scene backgrounds currently use blank placeholders with descriptions.
+- Story mode includes automatic playback, dialogue history, three manual save slots, JSON import/export, and restart. Story and free-mode saves are separate. Existing short-story saves continue their original story; save or export them first, then choose **"设置 → 重新开始剧情" (Settings → Restart story)** to begin the expanded story.
+
+Story mode does not require provider credentials. Free mode requires a working model connection; the included dialogue artwork and expression assets do not require an image API.
+
 ### Web tools, browser access, and approvals
 
 - **ModSearch** connects native `web_search` to ModSearch through the bundle and supplies `read_page` / `x_search`.
@@ -36,7 +47,7 @@ Costs and quality scores are routing estimates, not provider bills or guarantees
 
 "GAL 视窗 → 项目更新" (GAL view → Project updates) checks the plugin's npm version and the official DSH Desktop version separately. It offers "仅更新 npm 插件" (Update only the npm plugin), "仅更新完整客户端" (Update only the full client), and "一键更新插件与客户端" (Update plugin and client). Desktop plugin installation runs through the authenticated host connection. Fully exit and restart DSH Desktop after a successful installation.
 
-A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.20` version and DSH Desktop's version are independent.
+A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.21` version and DSH Desktop's version are independent.
 
 ## Installation
 
@@ -47,7 +58,7 @@ A page opened in a regular browser can check the plugin version and open downloa
 | DSH Desktop installed | Verified with DSH Desktop 2.0.5. On Windows / macOS, use "打开 DSH 终端" (Open DSH terminal) in Settings. If this entry is unavailable, use the CLI instructions below with the actual profile. |
 | Harness Web / CLI | Verified with `@deepseek-ai/dsh@0.1.2-rc.1`. Requires working `dsh` and `pnpm` commands and an explicit `--profile`. |
 | Node.js | The plugin declares `>=22.19`; the official CLI above requires `^22.19.0` or `>=24.0.0`. Node.js 24 is recommended. Prefer the bundled runtime for desktop installations. |
-| Models and network | Configure at least one working model provider. Installation requires access to `https://registry.npmjs.org/`. |
+| Models and network | Routing, AI conversation, and free mode require at least one working model provider. Story mode requires no model API. Installation requires access to `https://registry.npmjs.org/`. |
 
 Installing this npm package does not install DSH Desktop, model services, or a browser. If the desktop client is not installed yet, download it from the [official DSH Desktop Releases](https://github.com/anywhere-labs/dsh-desktop/releases).
 
@@ -58,7 +69,7 @@ Installing this npm package does not install DSH Desktop, model services, or a b
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.20
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
 ```
 
 3. After installation succeeds, use the desktop restart control, or explicitly quit from the system tray and reopen the app. Select the same profile. Closing the window may only hide the application.
@@ -73,7 +84,7 @@ If you do not have a global `dsh` but already have Node.js/npm and pnpm, replace
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.20
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
 dsh --profile web --dump-config
 ```
 
@@ -97,9 +108,9 @@ dsh --dump-config
 
 For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all five plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
 
-| Plugin | Pinned version for 0.4.20 | Purpose |
+| Plugin | Pinned version for 0.4.21 | Purpose |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.20` | Routing, GAL view, and update controls |
+| `@ljwei-stak/model-router-galgame` | `0.4.21` | Routing, GAL view, story/free modes, and update controls |
 | `@liustack/modlens` | `3.25.4` | Image understanding through compatible routes |
 | `@liustack/modsearch` | `5.10.1` | Search and page reading |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | Visible browser tools |
@@ -110,6 +121,8 @@ For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration
 Create a conversation in DSH and confirm that the **"GAL视窗" (GAL view)** tab appears. If it is missing, first confirm the profile, restart the host, and check "启用 GAL 视窗" (Enable GAL view) in Settings.
 
 ## First use
+
+To play without a model API, open **"GAL视窗 → GAL游戏 → 剧情模式" (GAL view → GAL game → Story mode)**. The steps below configure the existing routing and AI conversation features; the same host model configuration is used by free mode.
 
 1. Configure a provider and credentials in the host's "设置 → 模型" (Settings → Models), then confirm that ordinary chat can respond. No particular model vendor is required.
 2. Open "GAL视窗". Run `/router mode single` to choose a model manually, or `/router mode collective` to let the plugin assign tasks.
@@ -176,7 +189,7 @@ For example, only after confirming that ModLens is a duplicate standalone depend
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.20
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
 ```
 
 For Web / CLI, add `--profile web` after `plugin` in both commands. Handle other duplicate dependencies according to the actual error; do not remove all plugins at once. These removal commands are unnecessary when no duplicate entry exists.

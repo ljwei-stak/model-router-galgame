@@ -7,6 +7,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { SafeMarkdownText } from './SafeMarkdownText.jsx'
+import { DialogueBox } from './DialogueBox.jsx'
 import {
   elementStyle, sortElements, findDialogue, snapValue, elementCenter, MIN_SIZE,
 } from './scene.mjs'
@@ -86,51 +87,6 @@ function ElementBody({ el, mode, speaking, asset, characterOverride }) {
     )
     default: return <div className="gv-elshape">{el.name}</div>
   }
-}
-
-/** 游戏模式实时对话框面板（角色名牌 + 底板；正文由独立的「台词」元素承载）。
- * 旧场景缺少台词元素时回退到内嵌正文（dtextEl 为 null）。 */
-function DialogueBox({ el, line, type, pinned, onSkip, asset, dtextEl, aiStatus }) {
-  const bodyRef = useRef(null)
-  useEffect(() => {
-    if (pinned) return // 流式/测量期间钉住开头，不追底滚动
-    const body = bodyRef.current
-    if (body !== null) body.scrollTop = body.scrollHeight
-  }, [type.shown, line.text, pinned])
-  const speaker = line.speaker
-  const baseStyle = elementStyle(el)
-  const style = asset !== null && asset !== undefined
-    ? {
-      ...baseStyle,
-      backgroundImage: 'url("' + asset.dataUrl + '")',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    }
-    : baseStyle
-  const hasSeparateText = dtextEl !== null && dtextEl !== undefined
-  return (
-    <div
-      className="gv-dialogue"
-      style={style}
-      onClick={onSkip}
-      role="button"
-      tabIndex={0}
-      aria-label={`对话框：${speaker?.name ?? '当前角色'}，点击跳过打字动画`}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSkip() } }}
-    >
-      {!hasSeparateText && (
-        <div className="gv-dialogue-body" ref={bodyRef}>
-          {shouldRenderMarkdown(line)
-            ? <SafeMarkdownText text={type.shown} streaming={!type.done} />
-            : <span className="gv-plain-text">{type.shown}</span>}
-          {!type.done && <span className="gv-dialogue-caret" aria-hidden="true" />}
-          {aiStatus !== null && aiStatus !== undefined && aiStatus !== '' && (
-            <span className="gv-dtext-status">{(type.shown !== '' ? '\n' : '') + '（' + aiStatus + '…）'}</span>
-          )}
-        </div>
-      )}
-    </div>
-  )
 }
 
 /** 游戏模式角色名牌：每个元素只负责一方——role 'player' 仅在玩家行显示，

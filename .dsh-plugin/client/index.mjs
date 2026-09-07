@@ -9,6 +9,7 @@
 
 import { CSS } from './styles.mjs'
 import { GalView } from './GalView.jsx'
+import { createGalGameApi } from './gal-game-api.mjs'
 import { GalViewSettingsTab } from './SettingsTab.jsx'
 import {
   defaultScene, normalizeScene, cloneScene, makeElement, makeId, sortElements,
@@ -472,6 +473,9 @@ export function apply(ctx) {
     releaseDraftImage: id => conversation.releaseDraftImage(id),
     releaseDraftImages: images => conversation.releaseDraftImages(images),
   }
+  let connection
+  try { connection = ctx.get?.('connection') ?? ctx.connection } catch { connection = undefined }
+  const gameApi = createGalGameApi(connection?.rpc)
 
   const storage = createStorage()
   // 素材库：IndexedDB 持久 + 内存可观察镜像（图片 dataURL 不进 localStorage）。
@@ -755,6 +759,7 @@ export function apply(ctx) {
           routerActions: routerActionsFor(sessionId),
           openSession: routerActionsFor(sessionId).open,
           attachmentApi,
+          gameApi,
           api,
         }),
       }, GalView)
@@ -780,6 +785,7 @@ export function apply(ctx) {
       pricingApi: createPricingApi(ctx),
     }),
   }, GalViewSettingsTab))
+
 }
 
 

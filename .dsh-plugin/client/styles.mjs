@@ -51,6 +51,7 @@ export const CSS = `
   z-index: 20;
   flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   padding: 8px 14px;
@@ -66,6 +67,7 @@ export const CSS = `
 }
 .gv-mode-switch { display: flex; border: 1px solid var(--gv-line-strong); }
 .gv-mode-btn {
+  white-space: nowrap;
   border: 0; background: transparent; color: var(--gv-text-dim);
   padding: 4px 16px; font-size: 12px; cursor: pointer;
   transition: color .15s ease, background .15s ease;
@@ -73,8 +75,12 @@ export const CSS = `
 .gv-mode-btn + .gv-mode-btn { border-left: 1px solid var(--gv-line-strong); }
 .gv-mode-btn:hover { color: var(--gv-text); background: rgba(255, 255, 255, .04); }
 .gv-mode-btn.is-on { color: #fff; background: linear-gradient(180deg, rgba(143, 123, 255, .22), rgba(79, 140, 255, .14)); box-shadow: inset 0 -2px 0 var(--gv-accent); }
+[data-gal-view] .gv-mode-switch > button.gv-mode-btn[role="tab"] { color: #d5dde3; background: #18202b; min-height: 30px; }
+[data-gal-view] .gv-mode-switch > button.gv-mode-btn[role="tab"]:hover { color: #fff; background: #293848; }
+[data-gal-view] .gv-mode-switch > button.gv-mode-btn[role="tab"][aria-selected="true"] { color: #fff; background: #3b6459; box-shadow: inset 0 -2px 0 #99c1ad; }
 .gv-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .gv-topbar-hint { font-size: 11px; color: var(--gv-text-dim); letter-spacing: .05em; }
+.gv-game-area { flex: 1; min-height: 0; min-width: 0; overflow: auto; background: white; }
 
 /* ---------- 自动隐藏路由任务栏 ---------- */
 .gv-control-bar { position: relative; z-index: 12; flex: none; margin: 0 10px; border-bottom: 1px solid var(--gv-line); background: rgba(8, 11, 26, .88); transition: background .2s ease, box-shadow .2s ease; }

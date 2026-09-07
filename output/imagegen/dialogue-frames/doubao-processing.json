@@ -1,0 +1,16 @@
+{
+  "character": "doubao",
+  "source": "doubao-source.png",
+  "output": "doubao.webp",
+  "size": [
+    2019,
+    779
+  ],
+  "alpha": [
+    0,
+    255
+  ],
+  "backgroundTreatment": "native-alpha-preserved",
+  "removedPrimaryEdgePixels": 5877,
+  "nameplateCleanup": null
+}

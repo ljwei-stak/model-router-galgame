@@ -1,10 +1,11 @@
-/** GAL 视窗顶层：模式切换 + 游戏模式（舞台/控制条/输入/历史/设置）+ 编辑模式。
+/** GAL 视窗顶层：对话展示、独立剧情游戏与场景编辑。
  * 数据来源：useChat（Conversation 的 Chat target）、useSession（生命周期）、
  * inputActions（发送走宿主输入机，与普通输入框同一管线）。
  */
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StageView } from './StageView.jsx'
+import { GalGameView } from './GalGameView.jsx'
 import { Editor } from './Editor.jsx'
 import { SafeMarkdownText } from './SafeMarkdownText.jsx'
 import { createTypeState, setTarget, skip, advance, SPEEDS } from './typewriter.mjs'
@@ -430,7 +431,7 @@ function useFillSessionArea(rootRef) {
  * GAL 视窗组件（conversation.view 槽位条目）。
  * @param props - 槽位框架注入：sessionId/useSession/useChat/useInput/inputActions + inject 面的 useScene/useHistory/api。
  */
-export function GalView({ sessionId, useSession, useSessions, useConversation, useChat, useInput, inputActions, attachmentApi, useScene, useHistory, useAssets, useFonts, useStore, useRouter, routerActions, openSession, actions, api }) {
+export function GalView({ sessionId, useSession, useSessions, useConversation, useChat, useInput, inputActions, attachmentApi, useScene, useHistory, useAssets, useFonts, useStore, useRouter, routerActions, openSession, actions, api, gameApi }) {
   const scene = useScene(s => s)
   const history = useHistory(h => h)
   const assets = useAssets(a => a)
@@ -1007,7 +1008,7 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
   const line = currentLine !== null ? { ...currentLine, speaker } : null
 
   return (
-    <div className="gv-root" data-gal-view="" data-gal-mode={mode} data-taskbar={mode === 'game' ? (taskbarOpen ? 'open' : 'collapsed') : 'editor'} ref={rootRef}>
+    <div className="gv-root" data-gal-view="" data-gal-mode={mode} data-taskbar={mode === 'game' ? (taskbarOpen ? 'open' : 'collapsed') : mode === 'editor' ? 'editor' : 'hidden'} ref={rootRef}>
       <div className="gv-topbar">
         <div className="gv-brand">
           <span className="gv-brand-mark" aria-hidden="true" />
@@ -1021,7 +1022,16 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
             className={'gv-mode-btn' + (mode === 'game' ? ' is-on' : '')}
             onClick={() => setMode('game')}
           >
-            游戏模式
+            对话模式
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'galgame'}
+            className={'gv-mode-btn' + (mode === 'galgame' ? ' is-on' : '')}
+            onClick={() => setMode('galgame')}
+          >
+            GAL游戏
           </button>
           <button
             type="button"
@@ -1035,8 +1045,8 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
         </div>
         <div className="gv-topbar-right">
           {mode === 'editor'
-            ? <span className="gv-topbar-hint">编辑结果实时同步到游戏模式</span>
-            : (
+            ? <span className="gv-topbar-hint">编辑结果实时同步到对话模式</span>
+            : mode === 'game' && (
                 <>
                   <button type="button" className="gv-btn" onClick={() => setArchiveOpen(o => !o)}>存档</button>
                   <button type="button" className="gv-btn" onClick={() => setHistoryOpen(o => !o)}>日志</button>
@@ -1045,6 +1055,8 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
               )}
         </div>
       </div>
+
+      {mode === 'galgame' && <div className="gv-game-area" role="tabpanel" aria-label="GAL游戏"><GalGameView gameApi={gameApi} scene={scene} assetsMap={assets.map} /></div>}
 
       {mode === 'game' && (
         <div
@@ -1158,9 +1170,9 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
         />
       )}
 
-      {historyOpen && <HistoryPanel scene={displayScene} lines={lines} onClose={() => setHistoryOpen(false)} />}
-      {archiveOpen && <ArchiveRail archives={archiveRows} currentId={String(sessionId ?? '')} onOpen={id => { try { openSession?.(id) } catch { /* stale local archive */ }; setArchiveOpen(false) }} onClose={() => setArchiveOpen(false)} />}
-      {settingsOpen && <SettingsPanel scene={scene} api={api} onClose={() => setSettingsOpen(false)} />}
+      {mode === 'game' && historyOpen && <HistoryPanel scene={displayScene} lines={lines} onClose={() => setHistoryOpen(false)} />}
+      {mode === 'game' && archiveOpen && <ArchiveRail archives={archiveRows} currentId={String(sessionId ?? '')} onOpen={id => { try { openSession?.(id) } catch { /* stale local archive */ }; setArchiveOpen(false) }} onClose={() => setArchiveOpen(false)} />}
+      {mode === 'game' && settingsOpen && <SettingsPanel scene={scene} api={api} onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

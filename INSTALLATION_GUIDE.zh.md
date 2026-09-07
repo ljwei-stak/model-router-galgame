@@ -69,6 +69,8 @@ sudo mv dsh /usr/local/bin/
 
 ### ✅ 准备 DeepSeek API Key（推荐）
 
+仅游玩 **“GAL视窗 → GAL游戏 → 剧情模式”** 时不需要 API Key；以下模型配置用于 AI 对话、路由与自由模式，也可以使用宿主支持的其他模型厂商。
+
 1. 访问 https://platform.deepseek.com
 2. 注册/登录账号
 3. 在"API Keys"页面创建新的 API Key
@@ -84,8 +86,8 @@ sudo mv dsh /usr/local/bin/
 
 ```powershell
 pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.20
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.21
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.21
 ```
 
 ### 方法2: Git 克隆（仅源码开发）
@@ -137,7 +139,8 @@ model-router-galgame/
 │   ├── index.mjs
 │   ├── client.js
 │   └── shared/
-├── aipicture/           ✅ 必需（立绘资源）
+├── aipicture/           源码开发用原始立绘；npm 包已内嵌到 client.js
+├── output/imagegen/     源码开发用表情与对话框；npm 包已内嵌到 client.js
 ├── cordis.patch.yml
 └── README.md
 ```
@@ -148,11 +151,11 @@ model-router-galgame/
 
 ```powershell
 pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.20
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.20
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.21
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.21
 ```
 
-其中 `@0.4.20` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch 和 Ego Browser 依赖会自动解析，无需另行安装。
+其中 `@0.4.21` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch 和 Ego Browser 依赖会自动解析，无需另行安装。
 
 如果正在本地开发，再使用目录安装：
 
@@ -179,7 +182,7 @@ dsh plugin --profile web add /path/to/model-router-galgame
 dsh plugin --profile web list
 
 # 预期输出包含：
-# @ljwei-stak/model-router-galgame@0.4.20
+# @ljwei-stak/model-router-galgame@0.4.21
 ```
 
 ### 步骤4: 重启 Harness
@@ -287,6 +290,13 @@ dsh model list --provider deepseek
 **如果有错误**：参见[常见问题](#7-常见问题)
 
 ### ✅ 检查2: GAL 界面是否显示
+
+在已有会话中打开 **“GAL视窗”**。进入 **“GAL游戏”** 后，可切换“剧情模式”和“自由模式”；原有会话与场景编辑入口仍可使用。
+
+- 剧情模式使用固定中文剧本与选项，无需模型 API。扩展故事有 1,111 个节点、28 处选择、14 位模型娘的角色事件、5 个结局及 5 条后日谈。
+- 自由模式允许玩家自行打字，使用宿主中已配置的模型回应；好感度和信任既会增加也会降低，正常游玩不显示数值与后台判定。
+- 14 位角色各有独立美术对话框；DeepSeek 带五种生成表情差分。素材已经打包，游玩无需配置图片 API，场景仍使用空白与描述占位。
+- 剧情设置提供存档、导入/导出及“重新开始剧情”。两个模式的存档分开保存；旧短篇存档继续原路线，请先存档或导出，再重新开始以体验扩展篇。
 
 创建新对话后，应该看到：
 - ✅ 模型娘立绘（右侧或底部）
@@ -779,5 +789,5 @@ dsh restart
 
 **文档版本**: 1.0  
 **更新日期**: 2026-09-01  
-**适用插件版本**: 0.4.20  
+**适用插件版本**: 0.4.21
 **已验证宿主版本**: DSH Desktop 2.0.5 / `@deepseek-ai/dsh@0.1.2-rc.1`

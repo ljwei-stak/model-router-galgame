@@ -1,0 +1,16 @@
+{
+  "character": "claude",
+  "source": "claude-source.png",
+  "output": "claude.webp",
+  "size": [
+    2079,
+    756
+  ],
+  "alpha": [
+    0,
+    254
+  ],
+  "backgroundTreatment": "native-alpha-preserved",
+  "removedPrimaryEdgePixels": 1849,
+  "nameplateCleanup": null
+}

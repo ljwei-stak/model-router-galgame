@@ -7,7 +7,9 @@ import { pathToFileURL } from 'node:url'
 const ROOT = resolve(import.meta.dirname, '..')
 const CHECKOUT = resolve(ROOT, '../..')
 const HARNESS = resolve(ROOT, '../DSH-Desktop')
-const UI_PRIMITIVES = join(HARNESS, 'packages', 'client', 'ui-primitives', 'lib', 'index.js')
+const UI_PRIMITIVES = process.env.DSH_UI_PRIMITIVES_PATH
+  ? resolve(process.env.DSH_UI_PRIMITIVES_PATH)
+  : join(HARNESS, 'packages', 'client', 'ui-primitives', 'lib', 'index.js')
 const ENTRY = '.dsh-plugin/client/index.mjs'
 const OUTPUT = join(ROOT, '.dsh-plugin', 'client.js')
 const PACKAGE = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
@@ -43,6 +45,16 @@ function resolveEsbuildBin() {
     } catch { return [] }
   })()
   const candidates = [
+    ...(() => {
+      try {
+        const prefix = '@esbuild+' + process.platform + '-' + process.arch + '@'
+        const localPnpmRoot = join(ROOT, 'node_modules', '.pnpm')
+        return readdirSync(localPnpmRoot)
+          .filter(name => name.startsWith(prefix))
+          .map(name => join(localPnpmRoot, name, 'node_modules', '@esbuild', `${process.platform}-${process.arch}`, platformBinary + (process.platform === 'win32' ? '.exe' : '')))
+          .reverse()
+      } catch { return [] }
+    })(),
     ...nativeCandidates,
     ...(() => {
       try {
@@ -84,14 +96,21 @@ export function generate({ check = false } = {}) {
   const tempOut = join(temp, 'client.js')
   const args = [
     ENTRY, '--bundle', '--format=cjs', '--platform=browser', '--target=es2020',
-    '--external:react', '--jsx=transform', '--jsx-factory=React.createElement',
-    '--jsx-fragment=React.Fragment', '--loader:.png=dataurl', '--loader:.woff2=dataurl', '--loader:.woff=dataurl', '--loader:.ttf=dataurl',
+    '--external:react', '--external:react/*', '--external:react-dom', '--external:react-dom/*', '--jsx=transform', '--jsx-factory=React.createElement',
+    '--jsx-fragment=React.Fragment', '--loader:.png=dataurl', '--loader:.webp=dataurl', '--loader:.woff2=dataurl', '--loader:.woff=dataurl', '--loader:.ttf=dataurl',
     '--define:__MODEL_ROUTER_VERSION__=' + JSON.stringify(PLUGIN_VERSION),
     '--outfile=' + tempOut,
   ]
   // The source checkout is a sibling of this plugin, so pnpm's workspace
   // symlink is not visible from the plugin directory. Use the built host
   // package when it is present; published installs resolve the package normally.
+  if (process.env.DSH_UI_PRIMITIVES_PATH) {
+    try {
+      if (!statSync(UI_PRIMITIVES).isFile()) throw new Error('not a file')
+    } catch {
+      return { ok: false, errors: ['DSH_UI_PRIMITIVES_PATH 必须指向真实宿主 UI 包的 lib/index.js'] }
+    }
+  }
   try {
     if (statSync(UI_PRIMITIVES).isFile()) {
       args.splice(args.length - 1, 0, '--alias:@deepseek-ai/dsh-client-ui-primitives=' + UI_PRIMITIVES)

@@ -8,5 +8,7 @@
 /README.zh.md -text
 /README.i18n.yaml -text
 /INSTALLATION_GUIDE.zh.md -text
+/GAL_GAME_CONCEPT.zh.md -text
+/GAL_GAME_PREVIEW.md -text
 /MODLENS_DEPLOYMENT.md -text
 /LICENSE -text

@@ -27,6 +27,7 @@ import {
   webInstruction,
 } from './shared/web-routing.mjs'
 import { registerNpmUpdateRoute } from './shared/npm-update.mjs'
+import { registerGalGameRoutes } from './shared/gal-game-service.mjs'
 
 let settingsRuntimePromise
 let routerSettings = { ...DEFAULT_ROUTER_SETTINGS }
@@ -428,6 +429,10 @@ function createOpenCodeRepairScheduler(ctx) {
 }
 
 export function apply(ctx) {
+  ctx.inject?.(['connection', 'llm'], galCtx => {
+    registerGalGameRoutes(galCtx)
+  })
+
   // Desktop-only package mutation is exposed through an authenticated,
   // fixed-purpose route when the optional native capabilities are present.
   ctx.inject?.(['connection', 'desktopProfiles', 'desktopPnpm'], desktopCtx => {
