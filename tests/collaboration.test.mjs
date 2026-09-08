@@ -119,3 +119,52 @@ test('simple collective answer receives persona without turning it into collabor
   assert.equal(decision.messages.filter(message => message.content[0].text.includes('[Model Router Persona 表达层]')).length, 1)
   assert.equal(decision.messages.some(message => message.content[0].text.includes('协作阶段')), false)
 })
+
+for (const mode of ['collective', 'single']) {
+  test(`PPT skill context and native tools survive ${mode} routing across work steps`, async () => {
+    const context = fakeContext()
+    const { listeners } = context
+    const agent = { inject: () => undefined, options: { provider: 'zen', model: 'Qwen3.7 Plus' } }
+    context.commandHandler({ agent, rawInput: mode })
+    const signal = new AbortController().signal
+    const question = user('Use ppt-master to research, plan, generate and validate a detailed PowerPoint report.')
+    const catalog = Object.freeze({
+      id: 'native-skill-catalog',
+      role: 'system',
+      content: [{ type: 'text', text: '<available_skills><skill><name>ppt-master</name></skill></available_skills>' }],
+      source: { kind: 'system' },
+    })
+    const loadedSkill = Object.freeze({
+      id: 'native-skill-result',
+      role: 'tool',
+      content: [{ type: 'text', text: 'PPT Master: use the bundled scripts and save the PPTX in the writable workspace.' }],
+      source: { kind: 'tool' },
+    })
+    const tools = Object.freeze([
+      { name: 'skill', description: 'Load a native skill', parameters: { type: 'object' } },
+      { name: 'read_file', description: 'Read workspace files', parameters: { type: 'object' } },
+      { name: 'shell', description: 'Run a command with host permissions', parameters: { type: 'object' } },
+    ])
+    for (const step of [1, 2]) {
+      const nativeMessages = Object.freeze(step === 1 ? [question, catalog] : [question, catalog, loadedSkill])
+      const decision = await listeners.get('agent/pre-step')({
+        agent, messages: nativeMessages, signal, turn: 1, step,
+      }, async () => Object.freeze({ kind: 'enter', messages: nativeMessages }))
+      assert.deepEqual(decision.messages.slice(0, nativeMessages.length), nativeMessages)
+      assert.strictEqual(decision.messages[1], catalog)
+      if (step === 2) assert.strictEqual(decision.messages[2], loadedSkill)
+
+      const proposal = Object.freeze({
+        provider: 'host-default', model: 'host-default', messages: decision.messages,
+        tools, toolChoice: 'auto', metadata: { permissionPreset: 'workspace-write' },
+      })
+      const routed = await listeners.get('agent/request')({ agent, step, signal }, async () => proposal)
+      assert.strictEqual(routed.messages, proposal.messages)
+      assert.strictEqual(routed.tools, tools)
+      assert.strictEqual(routed.metadata, proposal.metadata)
+      assert.equal(routed.toolChoice, 'auto')
+      if (mode === 'collective') assert.notEqual(routed.model, 'host-default')
+      else assert.strictEqual(routed, proposal)
+    }
+  })
+}

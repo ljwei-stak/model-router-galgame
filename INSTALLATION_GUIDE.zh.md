@@ -16,6 +16,18 @@
 
 ---
 
+## PPT 生成扩展
+
+从 0.4.22 起，Router 聚合包自动安装并加载 `@ljwei-stak/ppt-master-for-mgr@6.3.1`。制作 PPT 时使用普通工作会话或 GAL 工作会话，在代理预设中启用 DSH 原生 `skill`、文件和终端工具，并在实际执行环境中安装 Python 3.10+。
+
+```sh
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.1 ppt-master-for-mgr doctor
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.1 ppt-master-for-mgr setup
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.1 ppt-master-for-mgr doctor
+```
+
+`setup` 主动运行 pip 安装依赖，npm 安装本身不会安装 Python 依赖。指定解释器时为命令添加 `--python <解释器绝对路径>`，也可使用 `PPT_MASTER_PYTHON`；工作代理需使用相同解释器。随后在可写工作目录中请求“使用 ppt-master 生成 PPTX”，确认模型通过原生 `skill` 加载 `ppt-master` 后生成并检查文件。剧情模式和自由模式的角色对话不承担 PPT 工作流。完整配置与可选功能要求见 [README 的 PPT 安装步骤](README.zh.md#4-准备-ppt-生成环境) 和 [PPT Master 项目](https://github.com/ljwei-stak/ppt-master-for-MGR)。
+
 ## 1. 前置要求
 
 ### ✅ 确认 DeepSeek Harness 已安装
@@ -86,8 +98,8 @@ sudo mv dsh /usr/local/bin/
 
 ```powershell
 pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.21
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.21
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.22
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.22
 ```
 
 ### 方法2: Git 克隆（仅源码开发）
@@ -151,11 +163,11 @@ model-router-galgame/
 
 ```powershell
 pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.21
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.21
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.22
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.22
 ```
 
-其中 `@0.4.21` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch 和 Ego Browser 依赖会自动解析，无需另行安装。
+其中 `@0.4.22` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch、Ego Browser 和 PPT Master 依赖会自动解析；PPT 的 Python 依赖另按本指南开头步骤配置。
 
 如果正在本地开发，再使用目录安装：
 
@@ -182,7 +194,7 @@ dsh plugin --profile web add /path/to/model-router-galgame
 dsh plugin --profile web list
 
 # 预期输出包含：
-# @ljwei-stak/model-router-galgame@0.4.21
+# @ljwei-stak/model-router-galgame@0.4.22
 ```
 
 ### 步骤4: 重启 Harness
@@ -789,5 +801,5 @@ dsh restart
 
 **文档版本**: 1.0  
 **更新日期**: 2026-09-01  
-**适用插件版本**: 0.4.21
+**适用插件版本**: 0.4.22
 **已验证宿主版本**: DSH Desktop 2.0.5 / `@deepseek-ai/dsh@0.1.2-rc.1`

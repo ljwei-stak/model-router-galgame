@@ -2,9 +2,9 @@
 
 English | [中文](README.zh.md)
 
-A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, and approval integration in one npm package, and runs inside an existing DSH host.
+A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, PPT generation skills, and approval integration in one npm package, and runs inside an existing DSH host.
 
-**Current release: 0.4.21** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**Current release: 0.4.22** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## Features
 
@@ -43,11 +43,17 @@ Story mode does not require provider credentials. Free mode requires a working m
 - **Approval integration** attaches work-package, stage, model, and task-count context to sandbox escalation requests in multi-task work. Approval decisions, human confirmation, auditing, and learning are handled by `@ljwei-stak/dsh-approval-gate` and the host permission policy. Installing the router does not enable automatic approval.
 - **OpenCode Zen compatibility** repairs OpenCode endpoint overrides mistakenly set to official website URLs while preserving custom gateways.
 
+### PowerPoint generation with PPT Master
+
+- **PPT Master** is bundled as a native DSH skill. In a normal work conversation, a PowerPoint/PPT/PPTX request can load `ppt-master` through the host's `skill` tool and follow its planning, SVG, validation, and PPTX export workflow.
+- Model Router keeps the host's skill catalog, loaded skill instructions, and file/terminal tools available when it chooses a model or advances a work stage. Use ordinary chat or the GAL conversation view for presentation work; story mode does not run tools, and free-play character dialogue is not the work agent.
+- The package includes the skill, Python scripts, and templates. Python dependencies require the explicit setup below; npm installation does not install Python or run pip. Generated presentations belong in the conversation's writable workspace.
+
 ### Separate plugin and desktop updates
 
 "GAL 视窗 → 项目更新" (GAL view → Project updates) checks the plugin's npm version and the official DSH Desktop version separately. It offers "仅更新 npm 插件" (Update only the npm plugin), "仅更新完整客户端" (Update only the full client), and "一键更新插件与客户端" (Update plugin and client). Desktop plugin installation runs through the authenticated host connection. Fully exit and restart DSH Desktop after a successful installation.
 
-A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.21` version and DSH Desktop's version are independent.
+A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.22` version and DSH Desktop's version are independent.
 
 ## Installation
 
@@ -69,7 +75,7 @@ Installing this npm package does not install DSH Desktop, model services, or a b
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.22
 ```
 
 3. After installation succeeds, use the desktop restart control, or explicitly quit from the system tray and reopen the app. Select the same profile. Closing the window may only hide the application.
@@ -84,7 +90,7 @@ If you do not have a global `dsh` but already have Node.js/npm and pnpm, replace
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.22
 dsh --profile web --dump-config
 ```
 
@@ -106,19 +112,36 @@ For desktop, run this in the DSH terminal opened by the app:
 dsh --dump-config
 ```
 
-For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all five plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
+For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all six plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
 
-| Plugin | Pinned version for 0.4.21 | Purpose |
+| Plugin | Pinned version for 0.4.22 | Purpose |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.21` | Routing, GAL view, story/free modes, and update controls |
+| `@ljwei-stak/model-router-galgame` | `0.4.22` | Routing, GAL view, story/free modes, and update controls |
 | `@liustack/modlens` | `3.25.4` | Image understanding through compatible routes |
 | `@liustack/modsearch` | `5.10.1` | Search and page reading |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | Visible browser tools |
 | `@ljwei-stak/dsh-approval-gate` | `0.5.3` | Approval policies and auditing |
+| `@ljwei-stak/ppt-master-for-mgr` | `6.3.1` | Native PPT skill, scripts, and templates |
 
-`schemastery@3.18.0` is also installed automatically. It is a runtime dependency, not a sixth standalone plugin. These dependencies are pinned: updating Router uses the dependency combination declared by the new Router package, rather than updating every dependency to its own `latest`.
+`schemastery@3.18.0` and PPT Master's native skill provider are also installed automatically as runtime dependencies. These dependencies are pinned: updating Router uses the dependency combination declared by the new Router package, rather than updating every dependency to its own `latest`.
 
 Create a conversation in DSH and confirm that the **"GAL视窗" (GAL view)** tab appears. If it is missing, first confirm the profile, restart the host, and check "启用 GAL 视窗" (Enable GAL view) in Settings.
+
+### 4. Prepare PPT generation
+
+Install Python 3.10 or newer in the environment where the DSH work agent executes commands. Enable the host's native `skill` tool (`@deepseek-ai/dsh-tool-skill`) and the file/terminal tools in that agent's preset. The bundled provider adds `ppt-master` to the native catalog; it does not override the preset's tools or permissions.
+
+Run in the DSH terminal or the same execution environment as the work agent:
+
+```sh
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.1 ppt-master-for-mgr doctor
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.1 ppt-master-for-mgr setup
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.1 ppt-master-for-mgr doctor
+```
+
+`setup` explicitly runs pip for the bundled requirements. Use a dedicated Python virtual environment when appropriate, then add `--python /absolute/path/to/python` to each command, or set `PPT_MASTER_PYTHON` to that interpreter. On Windows, quote interpreter paths containing spaces. Configure the work agent to use that same interpreter. `doctor` checks core Python imports; it is not a visual quality or complete optional-service check. Some conversion, rendering, speech, or image features need additional software or credentials described in [PPT Master](https://github.com/ljwei-stak/ppt-master-for-MGR).
+
+Restart DSH, open a normal work conversation with a writable workspace, and request, for example: "Use ppt-master to create a 10-slide project report and save the PPTX in this workspace." Confirm that the agent loads `ppt-master` through `skill`, then generates and checks the output. Follow the host's normal approval prompts for file and command access. A PowerPoint file is generated by the work agent; the GAL attachment input still does not parse binary documents directly.
 
 ## First use
 
@@ -183,13 +206,14 @@ For Web / CLI, use `dsh plugin --profile web remove @ljwei-stak/model-router-gal
 | `duplicate loader entry id` | A dependency may be installed separately and also loaded by the Router bundle in the same profile. Remove only standalone entries confirmed to be duplicates. |
 | `EADDRINUSE` / `task-board ledger is already owned` | Shut down the old host process using that profile normally. Changing the port does not release the profile lock. |
 | Image understanding fails | Check the ModLens engine, credentials, and available routes. Convert PDF/DOCX files to text first. |
+| PPT skill is absent or PPTX export fails | Confirm the `ppt-master-for-mgr` bundle entry and native `skill` tool are enabled in the same profile, use a work conversation, then run `doctor` with the agent's Python interpreter. Run `setup` for missing core dependencies and check workspace permissions. |
 | Update check fails | Check npm / GitHub connectivity. "Unable to confirm version" does not mean the installation is current. |
 
 For example, only after confirming that ModLens is a duplicate standalone dependency in the same profile, run:
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.21
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.22
 ```
 
 For Web / CLI, add `--profile web` after `plugin` in both commands. Handle other duplicate dependencies according to the actual error; do not remove all plugins at once. These removal commands are unnecessary when no duplicate entry exists.

@@ -9,6 +9,9 @@
     # Ego Browser supplies visible Chromium tools for JS-heavy and anti-bot pages.
     - id: ego-browser
       name: '@ljwei-stak/dsh-ego-browser'
+    # Register PPT Master in the host's native skill catalog.
+    - id: ppt-master-for-mgr
+      name: '@ljwei-stak/ppt-master-for-mgr'
     # The router annotates multi-task approval requests; dsh-approval-gate
     # owns the Flash decision, human handoff, audit and snapshot UI.
     - id: dsh-approval-gate
