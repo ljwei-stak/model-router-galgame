@@ -234,7 +234,7 @@ function webMessage(plan) {
     id: newMessageId(),
     role: 'user',
     content: [{ type: 'text', text }],
-    source: { kind: 'plugin', plugin: name, form: 'web-capability', summary: '联网与可见浏览器策略' },
+    source: { kind: 'plugin', plugin: name, form: 'instructions', summary: '联网与可见浏览器策略' },
   }
 }
 
@@ -272,7 +272,7 @@ function personaMessage(state, agent, step) {
     id: newMessageId(),
     role: 'user',
     content: [{ type: 'text', text }],
-    source: { kind: 'plugin', plugin: name, form: 'persona', summary: '最终答复表达层' },
+    source: { kind: 'plugin', plugin: name, form: 'instructions', summary: '最终答复表达层' },
   }
 }
 

@@ -18,7 +18,7 @@
 
 ## Watcher 工作路径与用量统计
 
-0.4.24 聚合包自动安装 `@ljwei-stak/dsh-watcher-for-mrg@0.4.0`。重启后，在普通
+0.4.25 聚合包自动安装 `@ljwei-stak/dsh-watcher-for-mrg@0.4.0`。重启后，在普通
 对话或 GAL 工作会话的原生标题栏点击眼睛按钮，可查看工作路径、工具执行和模型用量；
 设置中的 Watcher 页面提供本地会话汇总。`/router watcher` 可检查当前会话投影是否
 加载。此功能不改变模型路由和审批规则，也不额外发起模型请求。
@@ -31,7 +31,7 @@
 
 ## PPT 生成扩展
 
-从 0.4.22 起，Router 聚合包自动安装并加载 PPT Master；当前 0.4.24 固定使用 `@ljwei-stak/ppt-master-for-mgr@6.3.2`，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误。制作 PPT 时使用普通工作会话或 GAL 工作会话，在代理预设中启用 DSH 原生 `skill`、文件和终端工具，并在实际执行环境中安装 Python 3.10+；继续保留宿主沙箱和审批设置。
+从 0.4.22 起，Router 聚合包自动安装并加载 PPT Master；当前 0.4.25 固定使用 `@ljwei-stak/ppt-master-for-mgr@6.3.2`，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误。制作 PPT 时使用普通工作会话或 GAL 工作会话，在代理预设中启用 DSH 原生 `skill`、文件和终端工具，并在实际执行环境中安装 Python 3.10+；继续保留宿主沙箱和审批设置。
 
 ```sh
 npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doctor
@@ -50,7 +50,7 @@ npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doct
 dsh version
 
 # 预期输出示例：
-# 已验证：@deepseek-ai/dsh 0.1.2-rc.1；桌面端使用 DSH Desktop 2.0.5+
+# 已验证：@deepseek-ai/dsh 0.1.2-rc.1；桌面端使用 DSH Desktop 2.0.7+
 ```
 
 **如果未安装 Harness**，请先安装：
@@ -111,8 +111,8 @@ sudo mv dsh /usr/local/bin/
 
 ```powershell
 pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.24
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.24
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.25
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.25
 ```
 
 ### 方法2: Git 克隆（仅源码开发）
@@ -176,11 +176,11 @@ model-router-galgame/
 
 ```powershell
 pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.24
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.24
+pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.25
+pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.25
 ```
 
-其中 `@0.4.24` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch、Ego Browser、PPT Master 和 Watcher 依赖会自动解析；PPT 的 Python 依赖另按本指南开头步骤配置。
+其中 `@0.4.25` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch、Ego Browser、PPT Master 和 Watcher 依赖会自动解析；PPT 的 Python 依赖另按本指南开头步骤配置。
 
 如果正在本地开发，再使用目录安装：
 
@@ -207,7 +207,7 @@ dsh plugin --profile web add /path/to/model-router-galgame
 dsh plugin --profile web list
 
 # 预期输出包含：
-# @ljwei-stak/model-router-galgame@0.4.24
+# @ljwei-stak/model-router-galgame@0.4.25
 ```
 
 ### 步骤4: 重启 Harness
@@ -787,7 +787,7 @@ dsh restart
 
 ### ✅ 安装完成检查清单
 
-- [ ] 已安装 DSH Desktop 2.0.5+，或已验证的 `@deepseek-ai/dsh@0.1.2-rc.1`
+- [ ] 已安装 DSH Desktop 2.0.7+，或已验证的 `@deepseek-ai/dsh@0.1.2-rc.1`
 - [ ] 已从 npm registry 安装 `@ljwei-stak/model-router-galgame`
 - [ ] 插件已通过 `dsh plugin --profile <name> add` 安装
 - [ ] Harness 已重启
@@ -814,5 +814,5 @@ dsh restart
 
 **文档版本**: 1.0  
 **更新日期**: 2026-09-01  
-**适用插件版本**: 0.4.24
-**已验证宿主版本**: DSH Desktop 2.0.5 / `@deepseek-ai/dsh@0.1.2-rc.1`
+**适用插件版本**: 0.4.25
+**已验证宿主版本**: DSH Desktop 2.0.7 / `@deepseek-ai/dsh@0.1.2-rc.1`

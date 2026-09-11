@@ -120,6 +120,25 @@ test('simple collective answer receives persona without turning it into collabor
   assert.equal(decision.messages.some(message => message.content[0].text.includes('协作阶段')), false)
 })
 
+test('plugin context uses source forms accepted by the DSH session migrator', async () => {
+  const allowedForms = new Set(['instructions', 'catalog', 'snapshot', 'notice', 'relay', 'recall'])
+  const { listeners } = fakeContext()
+  const agent = { inject: () => undefined }
+  const signal = new AbortController().signal
+  const decision = await listeners.get('agent/pre-step')({
+    agent,
+    messages: [user('搜索最新资料并打开 Cloudflare 页面')],
+    signal,
+    turn: 1,
+    step: 1,
+  }, async () => ({ kind: 'enter', messages: [] }))
+  const pluginMessages = decision.messages.filter(message => message.source?.kind === 'plugin')
+  assert.ok(pluginMessages.length >= 3)
+  assert.equal(pluginMessages.every(message => allowedForms.has(message.source.form)), true)
+  assert.equal(pluginMessages.find(message => message.source.summary === '联网与可见浏览器策略')?.source.form, 'instructions')
+  assert.equal(pluginMessages.find(message => message.source.summary === '最终答复表达层')?.source.form, 'instructions')
+})
+
 for (const mode of ['collective', 'single']) {
   test(`PPT skill context and native tools survive ${mode} routing across work steps`, async () => {
     const context = fakeContext()
