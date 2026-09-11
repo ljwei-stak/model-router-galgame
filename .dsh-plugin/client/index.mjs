@@ -25,6 +25,7 @@ import {
 } from './fonts.mjs'
 import { createObservable, createHistory, createStorage, loadJSON, saveJSON } from './store.mjs'
 import { catalogSnapshot, selectModelThroughRemote } from './model-directory-bridge.mjs'
+import { createAttachmentApi } from './attachment-bridge.mjs'
 import { DEFAULT_ROUTER_SETTINGS, MODEL_CATALOG, MODEL_ROUTER_SETTINGS_NAMESPACE } from '../shared/router.mjs'
 import { createUpdateApi as createNpmUpdateApi } from './update-api.mjs'
 // 默认预设场景：仓库根 gal-scene.json（编辑器导出的格式，内嵌被引用的素材/字体）。
@@ -467,12 +468,6 @@ export function apply(ctx) {
   // GAL 输入区提交的图片与普通对话走同一条多模态 admission 管线。
   let conversation
   try { conversation = ctx.get?.('conversation') ?? ctx.conversation } catch { conversation = undefined }
-  const attachmentApi = conversation === undefined ? undefined : {
-    createDraftImages: files => conversation.createDraftImages(files),
-    draftImages: ids => conversation.draftImages(ids),
-    releaseDraftImage: id => conversation.releaseDraftImage(id),
-    releaseDraftImages: images => conversation.releaseDraftImages(images),
-  }
   let connection
   try { connection = ctx.get?.('connection') ?? ctx.connection } catch { connection = undefined }
   const gameApi = createGalGameApi(connection?.rpc)
@@ -758,7 +753,7 @@ export function apply(ctx) {
           },
           routerActions: routerActionsFor(sessionId),
           openSession: routerActionsFor(sessionId).open,
-          attachmentApi,
+          attachmentApi: createAttachmentApi(conversation, sessionId),
           gameApi,
           api,
         }),

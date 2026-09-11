@@ -152,9 +152,17 @@ test('plugin context uses source forms accepted by the DSH session migrator', as
   }, async () => ({ kind: 'enter', messages: [] }))
   const pluginMessages = decision.messages.filter(message => message.source?.kind === 'plugin')
   assert.ok(pluginMessages.length >= 3)
-  assert.equal(pluginMessages.every(message => allowedForms.has(message.source.form)), true)
-  assert.equal(pluginMessages.find(message => message.source.summary === '联网与可见浏览器策略')?.source.form, 'instructions')
-  assert.equal(pluginMessages.find(message => message.source.summary === '最终答复表达层')?.source.form, 'instructions')
+  for (const message of pluginMessages) {
+    const { source } = message
+    assert.equal(allowedForms.has(source.form), true)
+    if (source.form === 'snapshot') assert.equal(Array.isArray(source.sections), true)
+    else assert.equal(source.sections, undefined)
+    if (source.form === 'notice' && source.summary !== undefined) assert.equal(typeof source.summary, 'string')
+    else assert.equal(source.summary, undefined)
+  }
+  const messageText = message => message.content?.map(block => block.text ?? '').join('\n') ?? ''
+  assert.equal(pluginMessages.find(message => messageText(message).includes('[联网与可见浏览器适配]'))?.source.form, 'instructions')
+  assert.equal(pluginMessages.find(message => messageText(message).includes('[Model Router Persona 表达层]'))?.source.form, 'instructions')
 })
 
 for (const mode of ['collective', 'single']) {

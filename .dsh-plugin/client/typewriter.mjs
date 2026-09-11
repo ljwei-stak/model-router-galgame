@@ -5,6 +5,7 @@
 
 /** 三档速度（字/秒）。 */
 export const SPEEDS = Object.freeze({ slow: 24, normal: 60, fast: 240 })
+const FRAME_WATCHDOG_MS = 100
 
 /** 初始状态：空文本、已完成。 */
 export function createTypeState() {
@@ -34,4 +35,33 @@ export function advance(state, dtMs, speed = SPEEDS.normal) {
   const next = state.target.slice(0, state.shown.length + chars)
   if (next === state.shown) return state
   return { target: state.target, shown: next, done: next === state.target }
+}
+
+/** Schedule one animation tick. Electron pauses requestAnimationFrame while its
+ * renderer is hidden, so a short timer watchdog keeps restored dialogue from
+ * remaining blank until the whole Desktop window is foregrounded. */
+export function scheduleTypewriterTick(callback, runtime = {}) {
+  const requestFrame = runtime.requestFrame ?? globalThis.requestAnimationFrame?.bind(globalThis)
+  const cancelFrame = runtime.cancelFrame ?? globalThis.cancelAnimationFrame?.bind(globalThis)
+  const setTimer = runtime.setTimer ?? globalThis.setTimeout.bind(globalThis)
+  const clearTimer = runtime.clearTimer ?? globalThis.clearTimeout.bind(globalThis)
+  const now = runtime.now ?? (() => globalThis.performance?.now?.() ?? Date.now())
+  let settled = false
+  let frameId = null
+  let timerId = null
+  const finish = timestamp => {
+    if (settled) return
+    settled = true
+    if (frameId !== null && typeof cancelFrame === 'function') cancelFrame(frameId)
+    if (timerId !== null) clearTimer(timerId)
+    callback(Number.isFinite(timestamp) ? timestamp : now())
+  }
+  if (typeof requestFrame === 'function') frameId = requestFrame(finish)
+  timerId = setTimer(() => finish(now()), FRAME_WATCHDOG_MS)
+  return () => {
+    if (settled) return
+    settled = true
+    if (frameId !== null && typeof cancelFrame === 'function') cancelFrame(frameId)
+    if (timerId !== null) clearTimer(timerId)
+  }
 }

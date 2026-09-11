@@ -8,7 +8,7 @@ import { StageView } from './StageView.jsx'
 import { GalGameView } from './GalGameView.jsx'
 import { Editor } from './Editor.jsx'
 import { SafeMarkdownText } from './SafeMarkdownText.jsx'
-import { createTypeState, setTarget, skip, advance, SPEEDS } from './typewriter.mjs'
+import { createTypeState, setTarget, skip, advance, scheduleTypewriterTick, SPEEDS } from './typewriter.mjs'
 import {
   normalizeNodes, nodesToLines, partialToText, deriveStatus, routeFromNode, speakerFor, shouldRenderMarkdown, welcomeLine,
 } from './transcript.mjs'
@@ -17,6 +17,7 @@ import { buildPlan, MODEL_CATALOG } from '../shared/router.mjs'
 import { characterForModel } from './characters.mjs'
 import { readArchives, upsertArchive } from './archives.mjs'
 import { AnalysisSummary, ArchiveRail, CollaborationBoard, MaidAvatar, ModelPicker } from './GalPanels.jsx'
+import { createInputAttachmentActions, inputAttachmentIds } from './attachment-bridge.mjs'
 
 /** 玩家消息完整显示后的最短滞留时长（此后由模型状态触发翻页）。 */
 const STATUS_DWELL_MS = 1500
@@ -292,8 +293,9 @@ function AttachmentPicker({ inputActions, inputState, attachmentApi, draft, setD
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [documents, setDocuments] = useState([])
-  const imageIds = Array.isArray(inputState?.imageIds) ? inputState.imageIds : []
+  const imageIds = inputAttachmentIds(inputState)
   const imageAttachments = attachmentApi?.draftImages?.(imageIds) ?? []
+  const attachmentActions = useMemo(() => createInputAttachmentActions(inputActions), [inputActions])
 
   useEffect(() => {
     if (draft !== '' || documents.length === 0) return
@@ -320,7 +322,7 @@ function AttachmentPicker({ inputActions, inputState, attachmentApi, draft, setD
       if (supportedImages.length > 0 && attachmentApi?.createDraftImages !== undefined) {
         try {
           const created = attachmentApi.createDraftImages(supportedImages)
-          const accepted = inputActions.addImages(created.map(item => item.id))
+          const accepted = attachmentActions.add(created.map(item => item.id))
           if (!accepted) {
             attachmentApi.releaseDraftImages?.(created)
             messages.push('当前模型正在生成，暂不能添加图片。')
@@ -350,12 +352,14 @@ function AttachmentPicker({ inputActions, inputState, attachmentApi, draft, setD
       setBusy(false)
       if (messages.length > 0) setNotice(messages.join(' '))
     }
-  }, [attachmentApi, inputActions, setDraft])
+  }, [attachmentActions, attachmentApi, setDraft])
 
   const removeImage = useCallback(id => {
-    inputActions.removeImage(id)
-    attachmentApi?.releaseDraftImage?.(id)
-  }, [attachmentApi, inputActions])
+    attachmentActions.remove(id)
+    // DSH revokes the blob preview when the draft is released. Let React
+    // unmount the image first so Chromium does not report ERR_FILE_NOT_FOUND.
+    setTimeout(() => attachmentApi?.releaseDraftImage?.(id), 250)
+  }, [attachmentActions, attachmentApi])
 
   const removeDocument = useCallback(document => {
     setDraft(current => current.replace(document.block, ''))
@@ -451,12 +455,12 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
   const runningCalls = Array.isArray(legacy?.runningCalls) ? legacy.runningCalls : []
   const pending = Array.isArray(session?.pendingSubmissions) ? session.pendingSubmissions : []
   const promptError = session?.promptError ?? null
-  // GAL only needs the draft and image ids. Ignore unrelated input-machine
+  // GAL only needs the draft and attachment ids. Ignore unrelated input-machine
   // changes (queue/phase/notices) so they cannot interrupt text editing.
   const inputState = typeof useInput === 'function'
     ? useInput(
-      s => ({ draft: typeof s?.draft === 'string' ? s.draft : '', imageIds: Array.isArray(s?.imageIds) ? s.imageIds : EMPTY_IMAGE_IDS }),
-      (a, b) => a?.draft === b?.draft && a?.imageIds === b?.imageIds,
+      s => ({ draft: typeof s?.draft === 'string' ? s.draft : '', attachmentIds: inputAttachmentIds(s) }),
+      (a, b) => a?.draft === b?.draft && a?.attachmentIds === b?.attachmentIds,
     )
     : null
   const routerSnapshot = typeof useRouter === 'function' ? useRouter(s => s) : null
@@ -932,20 +936,20 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
 
   // （pendingPlayer 判定基于 liveText 是否到达，无需完成记录状态。）
 
-  // rAF 驱动打字机（done 后停止；advance 无变化返回同引用，React 自动跳过渲染）。
+  // rAF 驱动打字机；Electron 隐藏渲染页时由 timer watchdog 继续推进。
   const speed = SPEEDS[scene.settings.typeSpeed] ?? SPEEDS.normal
   useEffect(() => {
     if (type.done) return
-    let raf = 0
+    let cancelTick = () => {}
     let last = performance.now()
     const loop = now => {
       const dt = now - last
       last = now
       setType(t => advance(t, dt, speed))
-      raf = requestAnimationFrame(loop)
+      cancelTick = scheduleTypewriterTick(loop)
     }
-    raf = requestAnimationFrame(loop)
-    return () => { cancelAnimationFrame(raf) }
+    cancelTick = scheduleTypewriterTick(loop)
+    return () => { cancelTick() }
   }, [type.done, speed])
 
   const skipTyping = useCallback(() => { setType(t => skip(t)) }, [])
@@ -961,7 +965,7 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
       setPageIndex(pageIndex + 1)
     }
   }, [running, type.done, hasNextPage, pageIndex, skipTyping])
-  const hasImages = Array.isArray(inputState?.imageIds) && inputState.imageIds.length > 0
+  const hasImages = inputAttachmentIds(inputState).length > 0
   const handleRouterModeCommand = useCallback((nextMode, sourceDraft = '', clearDraft = false) => {
     const normalized = nextMode === 'single' ? 'single' : 'collective'
     const command = '/router mode ' + normalized

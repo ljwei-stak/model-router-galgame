@@ -1,818 +1,295 @@
-# DeepSeek Harness 插件安装完整教程
+# Model Router + GALGame 安装指南
 
-> 📦 从零开始，手把手教你安装 Model Router + GALGame 插件
+本指南适用于 `@ljwei-stak/model-router-galgame@0.4.27`。当前完整实机验证环境为
+DSH Desktop 2.0.7 / `@deepseek-ai/dsh@0.1.5-rc.1`。功能介绍、路由算法和 GAL
+玩法见 [README.zh.md](README.zh.md)。
 
----
+Router 是 DSH 插件，不是独立桌面程序。安装 Router 不会安装 DSH Desktop、模型
+服务、Python 或浏览器，也不会自动写入模型凭据。
 
-## 📋 目录
+## 1. 安装前确认
 
-1. [前置要求](#1-前置要求)
-2. [下载插件](#2-下载插件)
-3. [安装插件](#3-安装插件)
-4. [配置 DeepSeek](#4-配置-deepseek)
-5. [验证安装](#5-验证安装)
-6. [启动使用](#6-启动使用)
-7. [常见问题](#7-常见问题)
+### DSH Desktop
 
----
+尚未安装桌面端时，从
+[DSH Desktop 官方 Releases](https://github.com/anywhere-labs/dsh-desktop/releases)
+下载安装包。本文已验证 2.0.7；桌面端优先使用应用自带的 Node.js、pnpm 和 `dsh`
+运行时。
 
-## Watcher 工作路径与用量统计
+启动 DSH Desktop，选择实际使用的 profile，再从设置页标题区域打开 **DSH 终端**。
+这个终端已经绑定所选 profile。普通 PowerShell 中的全局 `dsh` 可能使用另一个
+`DSH_HOME`，不要用它修改桌面端 profile。
 
-0.4.26 聚合包自动安装 `@ljwei-stak/dsh-watcher-for-mrg@0.4.0`。重启后，在普通
-对话或 GAL 工作会话的原生标题栏点击眼睛按钮，可查看工作路径、工具执行和模型用量；
-设置中的 Watcher 页面提供本地会话汇总。`/router watcher` 可检查当前会话投影是否
-加载。此功能不改变模型路由和审批规则，也不额外发起模型请求。
-
-同一配置只保留一个 Watcher 实例。安装 Router 前先执行 `dsh plugin list`；若列表中
-有独立安装的上游 `dsh-watcher` 或 `@ljwei-stak/dsh-watcher-for-mrg`，按实际包名执行
-`dsh plugin remove dsh-watcher` 或
-`dsh plugin remove @ljwei-stak/dsh-watcher-for-mrg`。然后再安装 Router 聚合包，避免
-重复 loader ID。详情见 [Watcher 项目](https://github.com/ljwei-stak/dsh-watcher-For_MRG)。
-
-## PPT 生成扩展
-
-从 0.4.22 起，Router 聚合包自动安装并加载 PPT Master；当前 0.4.26 固定使用 `@ljwei-stak/ppt-master-for-mgr@6.3.2`，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误。制作 PPT 时使用普通工作会话或 GAL 工作会话，在代理预设中启用 DSH 原生 `skill`、文件和终端工具，并在实际执行环境中安装 Python 3.10+；继续保留宿主沙箱和审批设置。
-
-```sh
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doctor
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr setup
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doctor
-```
-
-`setup` 主动运行 pip 安装依赖，npm 安装本身不会安装 Python 依赖。指定解释器时为命令添加 `--python <解释器绝对路径>`，也可使用 `PPT_MASTER_PYTHON`；工作代理需使用相同解释器。随后在可写工作目录中请求“使用 ppt-master 生成 PPTX”，确认模型通过原生 `skill` 加载 `ppt-master` 后生成并检查文件。剧情模式和自由模式的角色对话不承担 PPT 工作流。完整配置与可选功能要求见 [README 的 PPT 安装步骤](README.zh.md#4-准备-ppt-生成环境) 和 [PPT Master 项目](https://github.com/ljwei-stak/ppt-master-for-MGR)。
-
-## 1. 前置要求
-
-### ✅ 确认 DeepSeek Harness 已安装
-
-```bash
-# 检查 Harness 版本
-dsh version
-
-# 预期输出示例：
-# 已验证：@deepseek-ai/dsh 0.1.2-rc.1；桌面端使用 DSH Desktop 2.0.7+
-```
-
-**如果未安装 Harness**，请先安装：
-
-#### Windows 安装
+在 DSH 终端中只读检查：
 
 ```powershell
-# 方法1: 使用官方安装器
-# 从 DeepSeek 官网下载 Harness 安装包
-# https://platform.deepseek.com/harness
-
-# 方法2: 使用命令行（需要管理员权限）
-winget install DeepSeek.Harness
+dsh --version
+dsh plugin list
+dsh --dump-config
 ```
 
-#### macOS 安装
+已验证的 CLI 版本输出为 `0.1.5-rc.1`。切换 profile 后重新打开 DSH 终端；已有终端
+仍绑定打开时的 profile。
 
-```bash
-# 方法1: 使用 Homebrew
-brew install deepseek-harness
+### Harness Web / CLI
 
-# 方法2: 手动下载安装包
-# 从官网下载 .dmg 文件并安装
-```
+使用 Web 或自定义 profile 时，需要 Node.js 22.19.x 或 24 及更新主版本，以及可用的
+`dsh` 和 pnpm。Router 及聚合的 Watcher、PPT Master peer 声明覆盖 DSH
+`0.1.2-rc.1` 与 `0.1.5-rc.1` 系列；本指南的完整端到端验证基线是
+`0.1.5-rc.1`。使用其他宿主版本时，应重新执行组合配置和实际启动验证。
 
-#### Linux 安装
-
-```bash
-# 方法1: 使用包管理器
-curl -fsSL https://platform.deepseek.com/install.sh | sh
-
-# 方法2: 下载二进制文件
-wget https://platform.deepseek.com/releases/harness-linux-x64.tar.gz
-tar -xzf harness-linux-x64.tar.gz
-sudo mv dsh /usr/local/bin/
-```
-
-### ✅ 确认网络连接
-
-插件需要联网获取 LiveBench 评分数据（可选）。
-
-### ✅ 准备 DeepSeek API Key（推荐）
-
-仅游玩 **“GAL视窗 → GAL游戏 → 剧情模式”** 时不需要 API Key；以下模型配置用于 AI 对话、路由与自由模式，也可以使用宿主支持的其他模型厂商。
-
-1. 访问 https://platform.deepseek.com
-2. 注册/登录账号
-3. 在"API Keys"页面创建新的 API Key
-4. 复制保存（后续配置时使用）
-
----
-
-## 2. 下载插件
-
-### 方法1: npm registry 安装（推荐）
-
-插件已经发布为公开 npm 包。直接安装时不需要克隆仓库：
+没有全局 `dsh` 时，可以显式使用已验证版本：
 
 ```powershell
-pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.26
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.26
+npx --yes --package=@deepseek-ai/dsh@0.1.5-rc.1 dsh --version
 ```
 
-### 方法2: Git 克隆（仅源码开发）
+### 模型与网络
 
-```bash
-# 克隆插件仓库
-git clone https://github.com/ljwei-stak/model-router-galgame.git
+- 安装时需要访问 `https://registry.npmjs.org/`。
+- 模型路由、普通 AI 对话和 GAL 自由模式需要宿主中至少一个可用的模型 provider。
+- GAL 剧情模式不需要模型 API；随包角色素材也不需要图片 API。
+- 凭据只在 DSH 的模型设置中配置，不要写入 Router 仓库或 npm 包。
 
-# 进入插件目录
-cd model-router-galgame
-```
+## 2. 了解聚合包
 
-### 方法3: 下载压缩包（仅源码开发）
+只需把 Router 安装为 profile 的直接依赖。0.4.27 会固定加载以下组合：
 
-1. 访问项目 GitHub Release 页面
-2. 下载最新版本的 `model-router-galgame.zip`
-3. 解压到本地目录
+| 包 | 版本 | 用途 |
+| --- | --- | --- |
+| `@ljwei-stak/model-router-galgame` | `0.4.27` | 模型路由、GAL 视窗与更新入口 |
+| `@liustack/modlens` | `3.25.4` | 图片理解 |
+| `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
+| `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
+| `@ljwei-stak/dsh-approval-gate` | `0.5.3` | 审批策略与审计 |
+| `@ljwei-stak/ppt-master-for-mgr` | `6.3.3` | 原生 PPT skill、脚本与模板 |
+| `@ljwei-stak/dsh-watcher-for-mrg` | `0.4.1` | 只读工作路径与模型用量 |
 
-```bash
-# Windows (使用 PowerShell)
-Expand-Archive -Path model-router-galgame.zip -DestinationPath C:\harness-plugins\
-
-# macOS/Linux
-unzip model-router-galgame.zip -d ~/harness-plugins/
-cd ~/harness-plugins/model-router-galgame
-```
-
-### 方法4: 直接使用现有目录（仅源码开发）
-
-如果你已经有插件文件（如本次适配工作的目录）：
-
-```bash
-# 假设插件在 F:\DeepSeek_harness\model-router-galgame
-cd F:\DeepSeek_harness\model-router-galgame
-```
-
----
-
-## 3. 安装插件
-
-### 步骤1: 确认插件目录结构
-
-确保目录包含以下关键文件：
-
-```
-model-router-galgame/
-├── package.json          ✅ 必需
-├── .dsh-plugin/         ✅ 必需
-│   ├── index.mjs
-│   ├── client.js
-│   └── shared/
-├── aipicture/           源码开发用原始立绘；npm 包已内嵌到 client.js
-├── output/imagegen/     源码开发用表情与对话框；npm 包已内嵌到 client.js
-├── cordis.patch.yml
-└── README.md
-```
-
-### 步骤2: 执行安装命令
-
-插件已发布到 npm，直接使用公开包名安装（推荐）：
+不要把这些依赖再次作为独立 bundle 安装到同一 profile。尤其应在安装前检查是否已有
+独立的上游 `dsh-watcher` 或 `@ljwei-stak/dsh-watcher-for-mrg`。只有在 `dsh plugin
+list` 明确显示它是直接安装项时，才按实际包名移除：
 
 ```powershell
-pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web add @ljwei-stak/model-router-galgame@0.4.26
-pnpm dsh plugin --profile desktop add @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin remove dsh-watcher
+# 或
+dsh plugin remove @ljwei-stak/dsh-watcher-for-mrg
 ```
 
-其中 `@0.4.26` 可以替换为通过 `npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/` 查询到的版本号。官方 ModLens、审批门控、ModSearch、Ego Browser、PPT Master 和 Watcher 依赖会自动解析；PPT 的 Python 依赖另按本指南开头步骤配置。
+不要为了处理一个重复项而删除整个 profile 或全部插件。
 
-如果正在本地开发，再使用目录安装：
+## 3. 安装到 DSH Desktop
 
-```bash
-# 进入插件目录
-cd /path/to/model-router-galgame
+在应用设置页打开的 **DSH 终端**中执行：
 
-# 安装插件到 Web profile
-dsh plugin --profile web add .
-
-# 如果使用绝对路径
-dsh plugin --profile web add /path/to/model-router-galgame
+```powershell
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
+dsh plugin list
+dsh --dump-config
 ```
 
-**预期输出**：
-```
-✓ Plugin '@ljwei-stak/model-router-galgame' added to profile 'web'
-```
+桌面端终端已绑定当前 profile，所以这里不额外填写 `--profile desktop`。安装结束后，
+从系统托盘完全退出 DSH Desktop，再重新打开并选择同一 profile。只关闭窗口可能只是
+隐藏应用，不能保证新插件被重新加载。
 
-### 步骤3: 验证插件已安装
+## 4. 安装到 Web 或自定义 profile
 
-```bash
-# 列出已安装的插件
+以下示例使用 `web`。如使用其他 profile，把每处 `web` 替换为实际名称，并确保命令
+使用宿主的同一个 `DSH_HOME`：
+
+```powershell
 dsh plugin --profile web list
-
-# 预期输出包含：
-# @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
+dsh --profile web --dump-config
+dsh web --no-open
 ```
 
-### 步骤4: 重启 Harness
-
-```bash
-# 停止 Harness
-dsh stop
-
-# 启动 Harness
-dsh start
-
-# 或者一步重启
-dsh restart
-```
-
-**等待启动完成**（约10-30秒）
-
----
-
-## 4. 配置 DeepSeek
-
-### 步骤1: 打开 Harness 设置
-
-1. 启动 Harness 后，打开浏览器访问 `http://localhost:3000`（默认地址）
-2. 点击右上角 **设置** 图标（齿轮⚙️）
-3. 进入 **LLM** → **Providers** 页面
-
-### 步骤2: 添加 DeepSeek Provider
-
-点击 **Add Provider** 按钮，填写以下信息：
-
-```yaml
-# Provider 配置
-ID: deepseek
-Name: DeepSeek
-Type: openai-compatible  # 或者选择 deepseek
-
-# API 配置
-API Key: sk-your-api-key-here  # 粘贴你的 API Key
-Base URL: https://api.deepseek.com  # 或你的中转地址
-
-# 模型配置（点击 Add Model 添加）
-Models:
-  - ID: deepseek-chat
-    Name: DeepSeek V3
-    Type: chat
-  
-  - ID: deepseek-reasoner
-    Name: DeepSeek R1
-    Type: chat
-```
-
-**配置截图参考**：
-```
-┌──────────────────────────────────────┐
-│ Provider ID: deepseek                │
-│ Provider Name: DeepSeek              │
-│ API Key: sk-*********************    │
-│ Base URL: https://api.deepseek.com  │
-│                                      │
-│ Models:                              │
-│ ┌──────────────────────────────────┐│
-│ │ • deepseek-chat                  ││
-│ │ • deepseek-reasoner              ││
-│ └──────────────────────────────────┘│
-│                                      │
-│ [Save] [Cancel]                      │
-└──────────────────────────────────────┘
-```
-
-### 步骤3: 保存配置
-
-点击 **Save** 按钮保存配置。
-
-### 步骤4: 测试连接
-
-```bash
-# 测试模型是否可用
-dsh model list --provider deepseek
-
-# 预期输出：
-# deepseek/deepseek-chat
-# deepseek/deepseek-reasoner
-```
-
-或者在 Web 界面：
-1. 创建新对话
-2. 模型选择器中应该能看到 DeepSeek 模型
-3. 发送测试消息："你好"
-
----
-
-## 5. 验证安装
-
-### ✅ 检查1: 插件是否加载
-
-打开浏览器开发者工具（F12），查看 Console：
-
-**预期输出**（无错误）：
-```
-[model-router] Plugin loaded successfully
-[model-router] Discovered 2 models
-```
-
-**如果有错误**：参见[常见问题](#7-常见问题)
-
-### ✅ 检查2: GAL 界面是否显示
-
-在已有会话中打开 **“GAL视窗”**。进入 **“GAL游戏”** 后，可切换“剧情模式”和“自由模式”；原有会话与场景编辑入口仍可使用。
-
-- 剧情模式使用固定中文剧本与选项，无需模型 API。扩展故事有 1,111 个节点、28 处选择、14 位模型娘的角色事件、5 个结局及 5 条后日谈。
-- 自由模式允许玩家自行打字，使用宿主中已配置的模型回应；好感度和信任既会增加也会降低，正常游玩不显示数值与后台判定。
-- 14 位角色各有独立美术对话框；DeepSeek 带五种生成表情差分。素材已经打包，游玩无需配置图片 API，场景仍使用空白与描述占位。
-- 剧情设置提供存档、导入/导出及“重新开始剧情”。两个模式的存档分开保存；旧短篇存档继续原路线，请先存档或导出，再重新开始以体验扩展篇。
-
-创建新对话后，应该看到：
-- ✅ 模型娘立绘（右侧或底部）
-- ✅ 对话框带有模型娘名牌
-- ✅ 打字机效果
-
-**对比截图**：
-
-```
-未安装插件：
-┌─────────────────────────┐
-│ 标准对话框              │
-│ ┌─────────────────────┐ │
-│ │ User: 你好          │ │
-│ │ Assistant: 你好！   │ │
-│ └─────────────────────┘ │
-└─────────────────────────┘
-
-安装插件后：
-┌─────────────────────────┬─────────┐
-│ 对话框                  │ 立绘    │
-│ ┌─────────────────────┐ │ ┌─────┐│
-│ │ 主人: 你好          │ │ │ 🐋  ││
-│ │                     │ │ │     ││
-│ │ DeepSeek·小鲸鱼:    │ │ │     ││
-│ │ 你好！先把问题列... │ │ └─────┘│
-│ └─────────────────────┘ │         │
-└─────────────────────────┴─────────┘
-```
-
-### ✅ 检查3: 路由功能是否正常
-
-在对话框输入命令：
-
-```bash
-/router plan
-```
-
-**预期输出**（JSON格式）：
-```json
-{
-  "mode": "collective",
-  "complexity": { "value": 0, "band": "simple" },
-  "taskType": "general",
-  "candidates": [...],
-  "selected": null
-}
-```
-
-### ✅ 检查4: 运行完整测试
-
-```bash
-# 进入插件目录
-cd /path/to/model-router-galgame
-
-# 安装测试依赖（首次运行）
-npm install
-
-# 运行测试套件
-npm test
-
-# 预期输出：
-# ✓ 21+ tests passed
-```
-
----
-
-## 6. 启动使用
-
-### 🎮 基础使用
-
-#### 1. 创建新对话
-
-点击 Harness 界面的 **New Chat** 按钮。
-
-#### 2. 选择模式
-
-```bash
-# 集体协作模式（默认，推荐）
-/router mode collective
-
-# 单独会话模式（手动选择模型）
-/router mode single
-```
-
-#### 3. 开始提问
-
-```
-你好！请介绍一下你自己
-```
-
-插件会：
-- 自动分析任务类型
-- 选择最优模型
-- 以模型娘角色回答
-- 显示对应立绘
-
-#### 4. 查看路由分析
-
-```bash
-/router plan
-```
-
-查看插件的路由决策细节。
-
-### 🎯 典型场景示例
-
-#### 场景1: 代码调试
-
-```python
-这段代码有问题，帮我找出来：
-
-def add(a, b):
-    return a + b
-    print("Done")  # 这行永远不会执行
-```
-
-**插件行为**：
-- 任务类型：`code`
-- 复杂度：`simple`
-- 选择模型：DeepSeek（code专长）
-- 表达风格：推理研究员·小鲸鱼
-
-#### 场景2: 系统设计（复杂任务）
-
-```
-设计一个电商网站的后端架构，包括：
-1. 用户系统
-2. 商品管理
-3. 订单处理
-4. 支付集成
-```
-
-**插件行为**：
-- 任务类型：`code`
-- 复杂度：`complex`
-- 启动协作模式：
-  - 阶段1: 问题建模
-  - 阶段2: 架构设计
-  - 阶段3: 风险评估
-  - 阶段4: 方案整合
-
-#### 场景3: 简单翻译
-
-```
-翻译成英文：今天天气真好
-```
-
-**插件行为**：
-- 任务类型：`general`
-- 复杂度：`simple`
-- 选择模型：DeepSeek Flash（低成本）
-- 费用：~$0.00001
-
----
-
-## 7. 常见问题
-
-### ❌ 问题1: 插件未加载
-
-**症状**：
-- 界面没有变化
-- 没有模型娘立绘
-- `/router` 命令无响应
-
-**排查步骤**：
-
-```bash
-# 1. 确认插件已安装
-dsh plugin --profile web list
-# 应该能看到 model-router-galgame
-
-# 2. 检查 Harness 日志
-dsh logs
-
-# 查找错误信息，例如：
-# [ERROR] Failed to load plugin: model-router-galgame
-
-# 3. 检查插件目录权限
-ls -la /path/to/model-router-galgame
-# 确保文件可读
-
-# 4. 从 npm registry 重新安装插件
-pnpm config set registry https://registry.npmjs.org/
-dsh plugin --profile web remove @ljwei-stak/model-router-galgame
-dsh plugin --profile web add @ljwei-stak/model-router-galgame@latest
-dsh restart
-```
-
-### ❌ 问题2: 立绘不显示
-
-**症状**：
-- 对话框样式正常
-- 但没有模型娘图片
-
-**解决方案**：
-
-```bash
-# 1. 检查图片文件
-ls aipicture/*.png
-# 应该有 DeepSeek1.png, ChatGPT1.png 等14个文件
-
-# 2. 检查浏览器控制台
-# 打开 F12 → Network 标签页
-# 查找图片加载失败的请求（404错误）
-
-# 3. 重新构建客户端
-cd /path/to/model-router-galgame
-npm run build:client
-dsh restart
-
-# 4. 清除浏览器缓存
-# Ctrl+Shift+Delete → 清除缓存
-```
-
-### ❌ 问题3: DeepSeek 模型不可用
-
-**症状**：
-- 插件正常加载
-- 但路由器没有选择 DeepSeek
-
-**排查步骤**：
-
-```bash
-# 1. 验证模型可见
-dsh model list --provider deepseek
-
-# 如果为空，检查 provider 配置
-
-# 2. 测试 API Key
-curl https://api.deepseek.com/v1/models \
-  -H "Authorization: Bearer sk-your-api-key"
-
-# 应该返回模型列表
-
-# 3. 检查 provider 配置
-# 在 Harness 设置中确认：
-# - API Key 正确
-# - Base URL 正确
-# - 模型 ID 正确（deepseek-chat）
-
-# 4. 查看路由日志
-dsh logs | grep "model-router"
-# 查找 "model discovery" 相关消息
-```
-
-### ❌ 问题4: 路由决策异常
-
-**症状**：
-- 简单任务却选择了昂贵模型
-- 或者完全没有选择模型
-
-**排查步骤**：
-
-```bash
-# 1. 查看详细路由方案
-/router plan
-
-# 检查输出：
-# - taskType: 是否正确识别任务类型
-# - complexity: 是否合理评估复杂度
-# - candidates: 是否有可用候选
-# - selected: 是否有选中的模型
-
-# 2. 检查 LiveBench 状态
-# 在路由方案的 optimization.liveBench 字段：
-# - fetchedAt: 是否成功刷新
-# - error: 是否有错误信息
-
-# 3. 手动触发刷新
-# 重启 Harness 会重新获取 LiveBench 数据
-dsh restart
-
-# 4. 使用本地评分
-# 如果 LiveBench 持续失败，插件会自动使用实验基线
-# 这是正常的降级行为
-```
-
-### ❌ 问题5: npm test 失败
-
-**症状**：
-- 运行测试时报错
-
-**解决方案**：
-
-```bash
-# 1. 安装依赖
-npm install
-
-# 2. 检查 Node.js 版本
-node --version
-# 需要 v18.0.0 或更高版本
-
-# 3. 清除缓存重新安装
-rm -rf node_modules package-lock.json
-npm install
-
-# 4. 单独运行测试文件定位问题
-node --test tests/router.test.mjs
-```
-
-### ❌ 问题6: 性能问题
-
-**症状**：
-- 响应缓慢
-- 界面卡顿
-
-**优化方案**：
-
-```bash
-# 1. 降低 LiveBench 刷新频率
-# 在 Model Router 设置中：
-liveBenchTtlMs: 1800000  # 30分钟
-
-# 2. 减少日志输出
-# 在 Harness 配置中：
-logLevel: "warn"  # 只输出警告和错误
-
-# 3. 使用本地 LiveBench 镜像
-# 如果网络慢，使用缓存的快照
-liveBenchEndpoint: "file:///path/to/local-snapshot.json"
-
-# 4. 禁用协作模式（如不需要）
-/router mode single
-```
-
----
-
-## 8. 高级配置（可选）
-
-### 配置价格与预算
-
-在 Harness 设置 → Model Router：
-
-```yaml
-pricing:
-  deepseek-chat:
-    input: 0.14
-    output: 0.28
-    cacheRead: 0.014
-    cacheWrite: 0.028
-    currency: "USD"
-
-budgetUsd: 0.01  # 单任务预算上限
-cacheReadRatio: 0.3  # 假设30%缓存命中
-cacheWriteRatio: 0.1
-```
-
-### 自定义 LiveBench 端点
-
-```yaml
-# 使用镜像加速
-liveBenchEndpoint: "https://your-mirror.com/livebench.json"
-
-# 或使用本地文件
-liveBenchEndpoint: "file:///path/to/snapshot.json"
-```
-
-### 调整路由权重
-
-编辑 `.dsh-plugin/shared/router.mjs`：
-
-```javascript
-export const OBJECTIVE_WEIGHTS = Object.freeze({
-  simple: { 
-    quality: 0.20,   // 降低质量权重
-    cost: 0.70,      // 提高成本权重
-    latency: 0.06, 
-    specialty: 0.02, 
-    risk: 0.02 
-  },
-  // ... balanced, complex
-})
-```
-
-保存后重启 Harness。
-
----
-
-## 9. 卸载插件（如需要）
-
-```bash
-# 1. 移除插件
-dsh plugin --profile web remove @ljwei-stak/model-router-galgame
-
-# 2. 重启 Harness
-dsh restart
-
-# 3. 删除插件文件（可选）
-rm -rf /path/to/model-router-galgame
-```
-
----
-
-## 10. 更新插件与完整客户端
-
-### 设置页更新控件
-
-插件和 DSH Desktop 使用不同的版本号与发布渠道，设置页不再把两者视为同一个 Release：
-
-| 控件 | 更新来源与行为 |
-|------|----------------|
-| **检查更新** | 独立检查 npm 官方 registry 上的 `@ljwei-stak/model-router-galgame` 和 [`anywhere-labs/dsh-desktop` 最新 Release](https://github.com/anywhere-labs/dsh-desktop/releases)。其中一项检查失败时，另一项结果仍然有效。 |
-| **仅从 npm 更新插件** | DSH Desktop 先解析 npm `latest`，再在当前 profile 中以 `--save-exact` 添加解析出的 `@ljwei-stak/model-router-galgame@<确切版本>`，并指定 `https://registry.npmjs.org/`。完成后完全退出并重启 DSH Desktop。 |
-| **仅更新完整客户端** | 调用 DSH Desktop 原生更新器检查并安装官方客户端 Release，不会顺带安装或替代 npm 插件。 |
-| **一键更新插件与客户端** | 按需先安装 npm 插件，再调用完整客户端原生更新；两项都可用时两项都会执行。 |
-| **查看 npm 包 / 客户端 Releases** | 分别打开 [插件 npm 页面](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) 和 [官方客户端 Releases](https://github.com/anywhere-labs/dsh-desktop/releases)。纯网页环境不能写入本机时也使用这两个入口。 |
-
-`ljwei-stak/deepseek-harness` Release 不再是插件或完整客户端的统一更新源，完整客户端安装包也不代表已经包含同版本插件。
-
-### 命令行从 npm registry 更新插件（推荐）
+如果没有全局 `dsh`，每条命令使用以下形式：
 
 ```powershell
-pnpm config set registry https://registry.npmjs.org/
-pnpm dsh plugin --profile web update @ljwei-stak/model-router-galgame
-pnpm dsh plugin --profile desktop update @ljwei-stak/model-router-galgame
-pnpm dsh --profile web --dump-config | Select-String "model-router-galgame|dsh-approval-gate"
+npx --yes --package=@deepseek-ai/dsh@0.1.5-rc.1 dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
+npx --yes --package=@deepseek-ai/dsh@0.1.5-rc.1 dsh --profile web --dump-config
 ```
 
-### Git 更新插件（仅源码开发）
+从已经安装依赖并完成构建的 Harness 源码运行时，才在 Harness 仓库根目录使用
+`pnpm dsh`。Router 仓库本身没有宿主启动命令。
 
-```bash
-cd /path/to/model-router-galgame
-git pull origin main
-dsh plugin --profile web add .
-dsh restart
+## 5. 核对组合配置
+
+`dsh --dump-config`（桌面端当前 profile）或 `dsh --profile web --dump-config`
+（指定 profile）的结果应各出现一次以下 loader ID：
+
+```text
+modlens
+modsearch
+ego-browser
+ppt-master-for-mgr
+dsh-watcher
+dsh-approval-gate
+model-router-galgame
 ```
 
-### 手动更新插件
+配置导出成功只能证明 bundle 可以组合，仍需在完全重启后检查实际界面和模型请求。
+若出现 `duplicate loader entry id`，重新执行 `dsh plugin list`，只移除同一 profile 中
+确认重复的直接安装项。
 
-1. 下载新版本
-2. 备份旧版本配置
-3. 卸载旧插件
-4. 安装新插件
-5. 恢复配置
+DSH Desktop 2.0.7 的 package-inventory 元数据扩展可能无法从 Desktop ASAR 基准地址
+解析第三方 loader，并因此阻断官方 DeepSeek 请求。Router 0.4.27 的 bundle 会停用这
+一个元数据扩展；模型输入、工具、会话日志、Watcher 和 Router 路由仍保持启用。
+
+## 6. 准备 PPT Master 的 Python 环境
+
+npm 安装只部署 PPT skill 和脚本，不会运行 pip。PPT 生成需要 Python 3.10 或更新
+版本，并要求依赖安装到 DSH 工作代理实际使用的同一解释器。
+
+### 先检查现有配置
+
+在创建环境或安装依赖前，先只读检查当前设置：
+
+```powershell
+Get-ChildItem Env:PPT_MASTER_PYTHON* -ErrorAction SilentlyContinue
+[Environment]::GetEnvironmentVariable('PPT_MASTER_PYTHON_ROOT', 'User')
+[Environment]::GetEnvironmentVariable('PIP_CACHE_DIR', 'User')
+```
+
+本机约定的 Python 管理根目录是字面路径 `D:\Jianwei\_Li\Python`。当前已存在：
+
+```text
+D:\Jianwei\_Li\Python\envs\ppt-master\Scripts\python.exe
+D:\Jianwei\_Li\Python\cache\pip
+```
+
+可继续只读确认，不要重复创建已有环境：
+
+```powershell
+Test-Path 'D:\Jianwei\_Li\Python\envs\ppt-master\Scripts\python.exe'
+& 'D:\Jianwei\_Li\Python\envs\ppt-master\Scripts\python.exe' --version
+Test-Path 'D:\Jianwei\_Li\Python\cache\pip'
+```
+
+若其他机器尚无环境，先选择已安装解释器，并把虚拟环境的绝对目标放在自己的
+Python 管理根目录内。例如：
+
+```powershell
+$pythonRoot = 'D:\path\to\managed-python'
+& 'C:\path\to\installed\python.exe' -m venv (Join-Path $pythonRoot 'envs\ppt-master')
+```
+
+不要在 Router 仓库内创建 `.venv`，也不要把 PPT 依赖安装到全局 Python 或用户
+site-packages。
+
+### 检查并安装 PPT 依赖
+
+本机使用以下配置。`PIP_CACHE_DIR` 保证 pip 缓存仍位于指定 Python 根目录：
+
+```powershell
+$pythonRoot = 'D:\Jianwei\_Li\Python'
+$env:PPT_MASTER_PYTHON_ROOT = $pythonRoot
+$env:PIP_CACHE_DIR = Join-Path $pythonRoot 'cache\pip'
+
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr doctor --python-root $pythonRoot
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr setup --python-root $pythonRoot
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr doctor --python-root $pythonRoot
+```
+
+其他机器把 `$pythonRoot` 替换为自己的管理根目录。`--python-root` 会在 Windows 查找
+`<根目录>\envs\ppt-master\Scripts\python.exe`；也可以用 `--python <解释器绝对路径>`
+指定解释器。`setup` 会明确调用该解释器的 pip，`doctor` 只检查 Python 与核心模块，
+不检查模型、密钥、视觉质量或全部可选服务。
+
+如果 DSH 工作代理需要在后续会话自动选择这个环境，应让启动 DSH 的进程能够读取
+`PPT_MASTER_PYTHON_ROOT` 和 `PIP_CACHE_DIR`，然后完全退出并重新打开 Desktop。配置
+持久环境变量前先读取现值，避免覆盖其他有效配置。
+
+在工作代理预设中启用 DSH 原生 `skill`、文件读写和代码运行工具。DSH Desktop
+2.0.7 的 Windows Bash 运行器存在已知故障；PPT Master 6.3.3 的适配流程通过代码
+运行器调用受管 Python，不要求开启有故障的 Bash 工具。FFmpeg、Pandoc、图片和
+音频服务只在相应工作流需要时另行配置。
+
+## 7. 完全重启后验证
+
+在新会话中依次检查：
+
+1. 原生模型选择器能够加载模型，普通对话可以收到回复。
+2. **GAL视窗**标签存在，且“对话模式”“GAL游戏”“编辑模式”都可以切换。
+3. 添加并移除一张 PNG/JPEG/WebP/GIF 图片后，没有槽位或 Blob 资源错误。
+4. 原生会话标题栏显示 Watcher 入口；面板能够读取工作路径、工具执行和已记录用量。
+5. `/router watcher` 返回当前会话的只读加载与统计摘要。
+
+PPT 快速验证可在有写权限的普通工作会话或 GAL 工作会话中发送：
+
+> 请使用原生 ppt-master skill 快速制作 1 页可编辑 PPTX，保存到当前工作目录，并完成质量检查。
+
+确认代理先加载 `ppt-master`，再生成和检查 PPTX。剧情模式和自由模式的角色对话不
+承担 PPT 工作流。宿主沙箱和审批策略继续生效。
+
+0.4.27 已在 Windows DSH Desktop 2.0.7 上完成两次冷启动检查，并完成
+1 页可编辑 PPTX 的实际生成；该次 PPT 会话 6 次工具调用全部成功，质量检查为 0
+错误、0 警告。
+
+## 8. 已知宿主警告
+
+- `[git-graph] auto-isolation disabled ...`：DSH Desktop 2.0.7 中 git-graph 对宿主
+  workspace service 形状变化的兼容提示，会回退到官方新会话行为，不表示 Router
+  加载失败。
+- `[connection] connection lost, retry #1`：实机 PPT 验证期间记录过两次，均自动
+  恢复且任务完成。若持续重复、页面不再更新或任务未完成，再检查宿主进程、网络和
+  provider；一次已恢复的重试不等于 PPT 工具失败。
+
+## 9. 常见问题
+
+| 现象 | 处理方式 |
+| --- | --- |
+| `dsh` 或 pnpm 找不到 | Desktop 使用设置页打开的 DSH 终端；Web/CLI 检查 Node.js 和 `npx`。 |
+| `No matching version found` 或镜像 404 | 用官方 registry 查询版本，并保留安装命令中的 `--registry=https://registry.npmjs.org/`。 |
+| 安装成功但没有 GAL 标签 | 确认安装和启动使用同一 profile 与 `DSH_HOME`，再完全退出并重启宿主。 |
+| `duplicate loader entry id` | 列出当前 profile 的直接依赖，只移除确认重复的独立 bundle。 |
+| `EADDRINUSE` 或 profile 已被占用 | 正常关闭使用该 profile 的旧宿主进程；仅换端口不会解除 profile 锁。 |
+| 普通 DeepSeek 请求被第三方包解析错误阻断 | 确认 0.4.27 的 `plugin-package-inventory-deepseek` 补丁已经出现在组合配置中。 |
+| 图片不能识别 | 检查 ModLens 路由、模型能力与凭据；GAL 附件不会直接解析 PDF/DOCX 正文。 |
+| 找不到 PPT skill | 检查 `ppt-master-for-mgr` loader、原生 `skill` 工具和当前代理预设。 |
+| PPT Python 导入失败 | 对工作代理实际使用的同一 `--python-root` 依次执行 `doctor`、`setup`、`doctor`。 |
+
+## 10. 手动更新与卸载
+
+只有在需要更新时查询 npm：
+
+```powershell
+npm view @ljwei-stak/model-router-galgame version --registry=https://registry.npmjs.org/
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@latest
+```
+
+Web/CLI 在第二条命令的 `plugin` 后添加 `--profile web`。先比较已安装版本与 npm
+版本，避免用较旧的 `latest` 覆盖本地开发版本。更新成功后完全退出并重新打开 DSH
+Desktop，或正常停止并重新启动使用该 Web profile 的宿主进程。
+
+卸载桌面端当前 profile 中的 Router：
+
+```powershell
+dsh plugin remove @ljwei-stak/model-router-galgame
+```
+
+Web/CLI 使用：
+
+```powershell
+dsh plugin --profile web remove @ljwei-stak/model-router-galgame
+```
+
+卸载后重新启动对应宿主。不要删除整个 profile、Python 管理根目录或模型凭据目录。
+
+## 11. 版本核对
+
+- npm：<https://www.npmjs.com/package/@ljwei-stak/model-router-galgame>
+- GitHub Releases：<https://github.com/ljwei-stak/model-router-galgame/releases>
+- Watcher：<https://github.com/ljwei-stak/dsh-watcher-For_MRG>
+- PPT Master：<https://github.com/ljwei-stak/ppt-master-for-MGR>
+
+发布时 npm 版本、GitHub `package.json`、Git 标签与 Release 应一致；旧 npm 版本、标签
+和 Releases 保留。项目只在明确要求更新时同步，不设置定时后台更新。
 
 ---
 
-## 11. 获取帮助
+**适用 Router 版本**：0.4.27
 
-### 📖 文档资源
+**完整验证宿主**：DSH Desktop 2.0.7 / `@deepseek-ai/dsh@0.1.5-rc.1`
 
-- **快速入门**: `QUICK_START.zh.md`
-- **完整报告**: `DEEPSEEK_ADAPTATION_REPORT.md`
-- **优化建议**: `MODEL_OPTIMIZATION.md`
-- **文档索引**: `ADAPTATION_INDEX.md`
-
-### 🐛 问题反馈
-
-- **GitHub Issues**: (项目仓库地址)
-- **DeepSeek 社区**: https://platform.deepseek.com/community
-- **邮件支持**: support@example.com
-
-### 💬 社区讨论
-
-- Discord: (社区链接)
-- QQ群: (群号)
-- 微信群: (添加方式)
-
----
-
-## 12. 总结
-
-### ✅ 安装完成检查清单
-
-- [ ] 已安装 DSH Desktop 2.0.7+，或已验证的 `@deepseek-ai/dsh@0.1.2-rc.1`
-- [ ] 已从 npm registry 安装 `@ljwei-stak/model-router-galgame`
-- [ ] 插件已通过 `dsh plugin --profile <name> add` 安装
-- [ ] Harness 已重启
-- [ ] DeepSeek provider 已配置
-- [ ] API Key 已添加
-- [ ] 模型已添加（deepseek-chat等）
-- [ ] 浏览器能看到模型娘立绘
-- [ ] `/router plan` 命令有响应
-- [ ] 测试对话正常工作
-
-### 🎉 恭喜！
-
-如果以上清单全部完成，你已经成功安装了 Model Router + GALGame 插件！
-
-**下一步**：
-1. 阅读 `QUICK_START.zh.md` 了解基本用法
-2. 尝试不同的任务场景
-3. 查看 `大模型娘人物设定.md` 了解角色
-4. 探索高级配置选项
-
-**祝你使用愉快！** 🚀
-
----
-
-**文档版本**: 1.0  
-**更新日期**: 2026-09-01  
-**适用插件版本**: 0.4.26
-**已验证宿主版本**: DSH Desktop 2.0.7 / `@deepseek-ai/dsh@0.1.2-rc.1`
+**固定集成版本**：Watcher 0.4.1 / PPT Master 6.3.3

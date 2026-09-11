@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, PPT generation skills, and approval integration in one npm package, and runs inside an existing DSH host.
 
-**Current release: 0.4.26** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**Current release: 0.4.27** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## Features
 
@@ -49,11 +49,11 @@ Story mode does not require provider credentials. Free mode requires a working m
 - **PPT Master** is bundled as a native DSH skill. In a normal work conversation, a PowerPoint/PPT/PPTX request can load `ppt-master` through the host's `skill` tool and follow its planning, SVG, validation, and PPTX export workflow.
 - Model Router keeps the host's skill catalog, loaded skill instructions, and file/terminal tools available when it chooses a model or advances a work stage. Use ordinary chat or the GAL conversation view for presentation work; story mode does not run tools, and free-play character dialogue is not the work agent.
 - The package includes the skill, Python scripts, and templates. Python dependencies require the explicit setup below; npm installation does not install Python or run pip. Generated presentations belong in the conversation's writable workspace.
-- Router 0.4.26 bundles PPT Master 6.3.2, which fixes PPTX staging-directory permissions under the Windows DSH sandbox with Python 3.13 or newer. Host sandbox and approval settings remain in effect.
+- Router 0.4.27 bundles PPT Master 6.3.3, which supports the managed Python root and avoids the faulty Windows Bash runner in DSH Desktop 2.0.7. It also includes the PPTX staging-directory permission repair from 6.3.2. Host sandbox and approval settings remain in effect.
 
 ### Watcher work paths and model usage
 
-Router 0.4.26 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.0`](https://github.com/ljwei-stak/dsh-watcher-For_MRG).
+Router 0.4.27 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG), built and tested against the DSH Desktop 2.0.7 SDK.
 Open the eye button in the native session header from Chat or the GAL work view
 to inspect turns, parallel tools, retries, timing, and recorded token usage.
 The Watcher settings section summarizes local session usage; provider and model
@@ -76,7 +76,7 @@ Watcher entry, and retaining either standalone entry would duplicate the loader 
 
 "GAL 视窗 → 项目更新" (GAL view → Project updates) checks the plugin's npm version and the official DSH Desktop version separately. It offers "仅更新 npm 插件" (Update only the npm plugin), "仅更新完整客户端" (Update only the full client), and "一键更新插件与客户端" (Update plugin and client). Desktop plugin installation runs through the authenticated host connection. Fully exit and restart DSH Desktop after a successful installation.
 
-A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.26` version and DSH Desktop's version are independent.
+A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.27` version and DSH Desktop's version are independent.
 
 ## Installation
 
@@ -85,7 +85,7 @@ A page opened in a regular browser can check the plugin version and open downloa
 | Environment | Requirements and installation entry point |
 | --- | --- |
 | DSH Desktop installed | Verified with DSH Desktop 2.0.7. On Windows / macOS, use "打开 DSH 终端" (Open DSH terminal) in Settings. If this entry is unavailable, use the CLI instructions below with the actual profile. |
-| Harness Web / CLI | Verified with `@deepseek-ai/dsh@0.1.2-rc.1`. Requires working `dsh` and `pnpm` commands and an explicit `--profile`. |
+| Harness Web / CLI | Verified with `@deepseek-ai/dsh@0.1.5-rc.1`, the SDK used by DSH Desktop 2.0.7. Requires working `dsh` and `pnpm` commands and an explicit `--profile`. |
 | Node.js | The plugin declares `>=22.19`; the official CLI above requires `^22.19.0` or `>=24.0.0`. Node.js 24 is recommended. Prefer the bundled runtime for desktop installations. |
 | Models and network | Routing, AI conversation, and free mode require at least one working model provider. Story mode requires no model API. Installation requires access to `https://registry.npmjs.org/`. |
 
@@ -98,7 +98,7 @@ Installing this npm package does not install DSH Desktop, model services, or a b
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
 ```
 
 3. After installation succeeds, use the desktop restart control, or explicitly quit from the system tray and reopen the app. Select the same profile. Closing the window may only hide the application.
@@ -109,11 +109,11 @@ No GitHub clone or fixed working directory is required. A global `dsh` in a regu
 
 These examples install only into `web`. For a custom profile, replace every `web` in the commands with its actual name and use the same `DSH_HOME` as the host.
 
-If you do not have a global `dsh` but already have Node.js/npm and pnpm, replace `dsh` at the start of each command below with `npx @deepseek-ai/dsh@0.1.2-rc.1`, for example `npx @deepseek-ai/dsh@0.1.2-rc.1 --version`.
+If you do not have a global `dsh` but already have Node.js/npm and pnpm, replace `dsh` at the start of each command below with `npx @deepseek-ai/dsh@0.1.5-rc.1`, for example `npx @deepseek-ai/dsh@0.1.5-rc.1 --version`.
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
 dsh --profile web --dump-config
 ```
 
@@ -137,15 +137,15 @@ dsh --dump-config
 
 For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all seven plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
 
-| Plugin | Pinned version for 0.4.26 | Purpose |
+| Plugin | Pinned version for 0.4.27 | Purpose |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.26` | Routing, GAL view, story/free modes, and update controls |
+| `@ljwei-stak/model-router-galgame` | `0.4.27` | Routing, GAL view, story/free modes, and update controls |
 | `@liustack/modlens` | `3.25.4` | Image understanding through compatible routes |
 | `@liustack/modsearch` | `5.10.1` | Search and page reading |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | Visible browser tools |
 | `@ljwei-stak/dsh-approval-gate` | `0.5.3` | Approval policies and auditing |
-| `@ljwei-stak/ppt-master-for-mgr` | `6.3.2` | Native PPT skill, scripts, and templates |
-| `@ljwei-stak/dsh-watcher-for-mrg` | `0.4.0` | Read-only work paths and actual model usage |
+| `@ljwei-stak/ppt-master-for-mgr` | `6.3.3` | Native PPT skill, scripts, and templates |
+| `@ljwei-stak/dsh-watcher-for-mrg` | `0.4.1` | Read-only work paths and actual model usage |
 
 `schemastery@3.18.0` and PPT Master's native skill provider are also installed automatically as runtime dependencies. These dependencies are pinned: updating Router uses the dependency combination declared by the new Router package, rather than updating every dependency to its own `latest`.
 
@@ -158,9 +158,9 @@ Install Python 3.10 or newer in the environment where the DSH work agent execute
 Run in the DSH terminal or the same execution environment as the work agent:
 
 ```sh
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doctor
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr setup
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doctor
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr doctor
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr setup
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr doctor
 ```
 
 `setup` explicitly runs pip for the bundled requirements. Use a dedicated Python virtual environment when appropriate, then add `--python /absolute/path/to/python` to each command, or set `PPT_MASTER_PYTHON` to that interpreter. On Windows, quote interpreter paths containing spaces. Configure the work agent to use that same interpreter. `doctor` checks core Python imports; it is not a visual quality or complete optional-service check. Some conversion, rendering, speech, or image features need additional software or credentials described in [PPT Master](https://github.com/ljwei-stak/ppt-master-for-MGR).
@@ -238,7 +238,7 @@ For example, only after confirming that ModLens is a duplicate standalone depend
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
 ```
 
 For Web / CLI, add `--profile web` after `plugin` in both commands. Handle other duplicate dependencies according to the actual error; do not remove all plugins at once. These removal commands are unnecessary when no duplicate entry exists.

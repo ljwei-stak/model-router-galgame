@@ -4,7 +4,7 @@
 
 适用于 DeepSeek Harness / DSH Desktop 的模型路由与 GAL 对话插件。它把任务分配、费用估算、模型角色对话、联网工具、PPT 生成技能和审批适配整合为一个 npm 插件包，需要在已有的 DSH 宿主中使用。
 
-**当前发布版本：0.4.26** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**当前发布版本：0.4.27** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## 功能介绍
 
@@ -49,11 +49,11 @@
 - **PPT Master** 以 DSH 原生 skill 随包加载。在普通工作会话中收到 PowerPoint/PPT/PPTX 需求后，模型可通过宿主 `skill` 工具加载 `ppt-master`，按规划、SVG 制作、检查和 PPTX 导出的流程执行。
 - Model Router 在选择模型和推进工作阶段时保留宿主技能目录、已加载的技能指令及文件/终端工具。制作 PPT 应使用普通聊天或 GAL 工作会话；剧情模式不调用工具，自由模式的角色对话也不是工作代理。
 - 包内包含技能、Python 脚本和模板。Python 依赖需按下方步骤主动安装，npm 安装不会自动安装 Python 或运行 pip。生成的演示文稿保存在会话可写工作目录中。
-- Router 0.4.26 随包加载 PPT Master 6.3.2，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误，宿主沙箱和审批设置仍然生效。
+- Router 0.4.27 随包加载 PPT Master 6.3.3，支持受管 Python 根目录，并避开 DSH Desktop 2.0.7 中有故障的 Windows Bash 运行器；同时保留 6.3.2 的 PPTX 临时目录权限修复。宿主沙箱和审批设置仍然生效。
 
 ### Watcher 工作路径与模型用量
 
-Router 0.4.26 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.0`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)。
+Router 0.4.27 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)，并使用 DSH Desktop 2.0.7 SDK 构建和测试。
 在普通对话或 GAL 工作视图中，点击原生会话标题栏的眼睛按钮，可查看轮次、并行工具、
 重试、耗时和已记录的 token 用量。设置中的 Watcher 页面汇总本地会话用量；Router
 切换模型时按供应商和模型分别统计。推理记录只显示供应商已写入会话的内容。
@@ -72,7 +72,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 “GAL 视窗 → 项目更新”分别检查插件 npm 版本和官方 DSH Desktop 版本。支持“仅更新 npm 插件”“仅更新完整客户端”和“一键更新插件与客户端”。桌面端插件安装通过已认证的宿主连接执行，成功后需要完全退出并重启 DSH Desktop。
 
-普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.26` 与 DSH Desktop 的版本号相互独立。
+普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.27` 与 DSH Desktop 的版本号相互独立。
 
 ## 安装
 
@@ -81,7 +81,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 | 环境 | 要求与安装入口 |
 | --- | --- |
 | 已安装 DSH Desktop | 已验证 DSH Desktop 2.0.7。Windows / macOS 使用设置页的“打开 DSH 终端”；没有该入口时按下方 CLI 方式指定实际 profile。 |
-| Harness Web / CLI | 已验证 `@deepseek-ai/dsh@0.1.2-rc.1`。需要可用的 `dsh` 与 `pnpm`，使用明确的 `--profile`。 |
+| Harness Web / CLI | 已验证 `@deepseek-ai/dsh@0.1.5-rc.1`，即 DSH Desktop 2.0.7 使用的 SDK。需要可用的 `dsh` 与 `pnpm`，使用明确的 `--profile`。 |
 | Node.js | 插件声明 `>=22.19`；上述官方 CLI 要求 `^22.19.0` 或 `>=24.0.0`，建议 Node.js 24。桌面端优先使用其内置运行时。 |
 | 模型与网络 | 路由、AI 对话与自由模式至少需要一个可用的模型 provider；剧情模式不需要模型 API。安装时能访问 `https://registry.npmjs.org/`。 |
 
@@ -94,7 +94,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
 ```
 
 3. 安装成功后，使用桌面端的重启入口，或从托盘明确退出后重新打开，仍选择刚才的 profile。仅关闭窗口可能只是隐藏应用。
@@ -105,11 +105,11 @@ dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/m
 
 以下示例只安装到 `web`。如使用自定义 profile，把命令中的 `web` 全部替换为实际名称，并确保使用与宿主相同的 `DSH_HOME`。
 
-如果没有全局 `dsh`，但已有 Node.js/npm 和 pnpm，可把以下每条命令开头的 `dsh` 替换为 `npx @deepseek-ai/dsh@0.1.2-rc.1`，例如 `npx @deepseek-ai/dsh@0.1.2-rc.1 --version`。
+如果没有全局 `dsh`，但已有 Node.js/npm 和 pnpm，可把以下每条命令开头的 `dsh` 替换为 `npx @deepseek-ai/dsh@0.1.5-rc.1`，例如 `npx @deepseek-ai/dsh@0.1.5-rc.1 --version`。
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
 dsh --profile web --dump-config
 ```
 
@@ -133,15 +133,15 @@ dsh --dump-config
 
 Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含以下七个插件，且没有重复 loader ID。配置导出不能替代实际启动验证；只需安装 Router 聚合包，依赖和 bundle 条目会自动加入。
 
-| 插件 | 0.4.26 固定依赖版本 | 用途 |
+| 插件 | 0.4.27 固定依赖版本 | 用途 |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.26` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
+| `@ljwei-stak/model-router-galgame` | `0.4.27` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
 | `@liustack/modlens` | `3.25.4` | 兼容路由的图片理解 |
 | `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
 | `@ljwei-stak/dsh-approval-gate` | `0.5.3` | 审批策略与审计 |
-| `@ljwei-stak/ppt-master-for-mgr` | `6.3.2` | 原生 PPT 技能、脚本和模板 |
-| `@ljwei-stak/dsh-watcher-for-mrg` | `0.4.0` | 只读工作路径与实际模型用量 |
+| `@ljwei-stak/ppt-master-for-mgr` | `6.3.3` | 原生 PPT 技能、脚本和模板 |
+| `@ljwei-stak/dsh-watcher-for-mrg` | `0.4.1` | 只读工作路径与实际模型用量 |
 
 `schemastery@3.18.0` 和 PPT Master 的原生技能提供器也会作为运行依赖自动安装。上述依赖采用固定版本；更新 Router 时使用新 Router 包声明的依赖组合，而不是自动升级每个依赖到各自的 `latest`。
 
@@ -154,9 +154,9 @@ Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含
 在 DSH 终端或与工作代理相同的执行环境中运行：
 
 ```sh
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doctor
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr setup
-npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doctor
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr doctor
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr setup
+npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr doctor
 ```
 
 `setup` 会明确运行 pip 安装包内 requirements。可以先创建专用 Python 虚拟环境，再为每条命令添加 `--python /absolute/path/to/python`，或将环境变量 `PPT_MASTER_PYTHON` 设置为该解释器；Windows 路径包含空格时需加引号。工作代理也应使用同一个解释器。`doctor` 检查核心 Python 模块，不代表视觉质量或全部可选服务已通过检查。部分转换、渲染、配音和生图功能还需要 [PPT Master 文档](https://github.com/ljwei-stak/ppt-master-for-MGR) 中说明的额外软件或凭据。
@@ -234,7 +234,7 @@ Web / CLI 使用 `dsh plugin --profile web remove @ljwei-stak/model-router-galga
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
 ```
 
 Web / CLI 在两条命令的 `plugin` 后加 `--profile web`。其他重复依赖按实际报错处理，不要一次删除全部插件。没有重复条目时不需要执行这些移除命令。

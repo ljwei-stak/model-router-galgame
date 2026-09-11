@@ -8,6 +8,7 @@ import {
   nextCollaborationStage,
   textFromMessages,
 } from './shared/router.mjs'
+import { formatErrorChain } from './shared/error-diagnostics.mjs'
 import { fetchLiveBenchSnapshot } from './shared/livebench.mjs'
 import { buildPersonaPrompt, isPersonaPrompt } from './shared/persona.mjs'
 import {
@@ -29,6 +30,8 @@ import {
 import { registerNpmUpdateRoute } from './shared/npm-update.mjs'
 import { registerGalGameRoutes } from './shared/gal-game-service.mjs'
 import { watcherStatus } from './shared/watcher.mjs'
+import { repairLiangshenPreset, reportLiangshenCompatibility } from './shared/liangshen-compat.mjs'
+import { repairRouterSessions, reportRouterSessionCompatibility } from './shared/session-compat.mjs'
 
 let settingsRuntimePromise
 let routerSettings = { ...DEFAULT_ROUTER_SETTINGS }
@@ -234,7 +237,7 @@ function webMessage(plan) {
     id: newMessageId(),
     role: 'user',
     content: [{ type: 'text', text }],
-    source: { kind: 'plugin', plugin: name, form: 'instructions', summary: '联网与可见浏览器策略' },
+    source: { kind: 'plugin', plugin: name, form: 'instructions' },
   }
 }
 
@@ -272,7 +275,7 @@ function personaMessage(state, agent, step) {
     id: newMessageId(),
     role: 'user',
     content: [{ type: 'text', text }],
-    source: { kind: 'plugin', plugin: name, form: 'instructions', summary: '最终答复表达层' },
+    source: { kind: 'plugin', plugin: name, form: 'instructions' },
   }
 }
 
@@ -430,6 +433,10 @@ function createOpenCodeRepairScheduler(ctx) {
 }
 
 export function apply(ctx) {
+  const repairLiangshen = () => reportLiangshenCompatibility(ctx, repairLiangshenPreset())
+  repairLiangshen()
+  reportRouterSessionCompatibility(ctx, repairRouterSessions())
+
   ctx.inject?.(['connection', 'llm', 'webServer'], galCtx => {
     registerGalGameRoutes(galCtx)
   })
@@ -544,6 +551,7 @@ export function apply(ctx) {
   // ordering without requiring users to remove and re-add the route.
   void scheduleOpenCodeRepair()
   ctx.on('settings/updated', (namespace) => {
+    if (String(namespace) === 'dsh-liangshen') queueMicrotask(repairLiangshen)
     if (String(namespace) === LLM_SETTINGS_NAMESPACE) void scheduleOpenCodeRepair()
   })
   ctx.on('settings/document-updated', (namespace) => {
@@ -727,6 +735,6 @@ export function apply(ctx) {
   })
 
   ctx.on('agent/error', ({ agent, error }) => {
-    ctx.logger?.warn?.(`model-router: agent ${String(agent.id)} failed: ${String(error)}`)
+    ctx.logger?.warn?.(`model-router: agent ${String(agent.id)} failed: ${formatErrorChain(error)}`)
   })
 }

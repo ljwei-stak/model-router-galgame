@@ -1,5 +1,8 @@
 packages:
   - .
 
+autoInstallPeers: false
+
 minimumReleaseAgeExclude:
-  - '@ljwei-stak/dsh-watcher-for-mrg@0.4.0'
+  - '@ljwei-stak/dsh-watcher-for-mrg@0.4.1'
+  - '@ljwei-stak/ppt-master-for-mgr@6.3.3'

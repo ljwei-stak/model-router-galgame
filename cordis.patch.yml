@@ -29,4 +29,12 @@
   config:
     searchProvider: modsearch
 
+# DSH SDK 0.1.5's package-inventory extension aborts the entire official
+# DeepSeek request when one active third-party Loader entry cannot be resolved
+# from Desktop's ASAR base URL. The field is provider metadata only; disabling
+# it keeps model input, tools, session logs and Router behavior unchanged.
+- id: plugin-package-inventory-deepseek
+  config:
+    enabled: false
+
 
