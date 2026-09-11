@@ -14,8 +14,9 @@
   the version solely to synchronize an existing release.
 - Equal version numbers require equal package contents. npm versions cannot be
   overwritten; report conflicting contents instead of silently replacing them.
-- Run `npm test` and `npm run check:client`. A skipped client build does not count
-  as validation. The current build requires the sibling DSH-Desktop checkout.
+- Run `pnpm install --frozen-lockfile`, `npm test`, `npm run check:client`, and
+  `pnpm peers check`. A skipped client build does not count as validation. The
+  repository pins the DSH SDK needed to reproduce the client build.
 - Keep the release's `v<version>` tag on its verified source commit. Never move
   an existing tag or force-push over concurrent work.
 - Preserve all older npm versions, Git tags, and GitHub Releases. Publish new

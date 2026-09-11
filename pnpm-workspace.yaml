@@ -1,0 +1,5 @@
+packages:
+  - .
+
+minimumReleaseAgeExclude:
+  - '@ljwei-stak/dsh-watcher-for-mrg@0.4.0'

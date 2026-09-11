@@ -4,7 +4,7 @@
 
 适用于 DeepSeek Harness / DSH Desktop 的模型路由与 GAL 对话插件。它把任务分配、费用估算、模型角色对话、联网工具、PPT 生成技能和审批适配整合为一个 npm 插件包，需要在已有的 DSH 宿主中使用。
 
-**当前发布版本：0.4.23** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**当前发布版本：0.4.24** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## 功能介绍
 
@@ -48,13 +48,30 @@
 - **PPT Master** 以 DSH 原生 skill 随包加载。在普通工作会话中收到 PowerPoint/PPT/PPTX 需求后，模型可通过宿主 `skill` 工具加载 `ppt-master`，按规划、SVG 制作、检查和 PPTX 导出的流程执行。
 - Model Router 在选择模型和推进工作阶段时保留宿主技能目录、已加载的技能指令及文件/终端工具。制作 PPT 应使用普通聊天或 GAL 工作会话；剧情模式不调用工具，自由模式的角色对话也不是工作代理。
 - 包内包含技能、Python 脚本和模板。Python 依赖需按下方步骤主动安装，npm 安装不会自动安装 Python 或运行 pip。生成的演示文稿保存在会话可写工作目录中。
-- Router 0.4.23 随包加载 PPT Master 6.3.2，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误，宿主沙箱和审批设置仍然生效。
+- Router 0.4.24 随包加载 PPT Master 6.3.2，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误，宿主沙箱和审批设置仍然生效。
+
+### Watcher 工作路径与模型用量
+
+Router 0.4.24 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.0`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)。
+在普通对话或 GAL 工作视图中，点击原生会话标题栏的眼睛按钮，可查看轮次、并行工具、
+重试、耗时和已记录的 token 用量。设置中的 Watcher 页面汇总本地会话用量；Router
+切换模型时按供应商和模型分别统计。推理记录只显示供应商已写入会话的内容。
+剧情模式和自由模式的独立角色对话不计入原生工作会话统计。
+
+`/router watcher` 只读查询当前会话的 `watcherInsights`，报告加载状态、统计和
+Router 最近使用的路由。Watcher 不修改模型路由、提示词、工具、审批或模型请求。
+
+只需安装 Router 聚合包。安装前先在同一 profile 执行 `dsh plugin list`。如果列表中
+存在独立安装的上游 `dsh-watcher` 或 `@ljwei-stak/dsh-watcher-for-mrg`，按列表中的包名
+执行 `dsh plugin remove dsh-watcher` 或
+`dsh plugin remove @ljwei-stak/dsh-watcher-for-mrg`。Router 会加载其固定版本的 Watcher；
+保留任一独立条目都会形成重复的 loader ID。
 
 ### 插件与桌面端分别更新
 
 “GAL 视窗 → 项目更新”分别检查插件 npm 版本和官方 DSH Desktop 版本。支持“仅更新 npm 插件”“仅更新完整客户端”和“一键更新插件与客户端”。桌面端插件安装通过已认证的宿主连接执行，成功后需要完全退出并重启 DSH Desktop。
 
-普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.23` 与 DSH Desktop 的版本号相互独立。
+普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.24` 与 DSH Desktop 的版本号相互独立。
 
 ## 安装
 
@@ -76,7 +93,7 @@
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.23
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.24
 ```
 
 3. 安装成功后，使用桌面端的重启入口，或从托盘明确退出后重新打开，仍选择刚才的 profile。仅关闭窗口可能只是隐藏应用。
@@ -91,7 +108,7 @@ dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/m
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.23
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.24
 dsh --profile web --dump-config
 ```
 
@@ -113,16 +130,17 @@ dsh web
 dsh --dump-config
 ```
 
-Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含以下六个插件，且没有重复 loader ID。配置导出不能替代实际启动验证；只需安装 Router 聚合包，依赖和 bundle 条目会自动加入。
+Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含以下七个插件，且没有重复 loader ID。配置导出不能替代实际启动验证；只需安装 Router 聚合包，依赖和 bundle 条目会自动加入。
 
-| 插件 | 0.4.23 固定依赖版本 | 用途 |
+| 插件 | 0.4.24 固定依赖版本 | 用途 |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.23` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
+| `@ljwei-stak/model-router-galgame` | `0.4.24` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
 | `@liustack/modlens` | `3.25.4` | 兼容路由的图片理解 |
 | `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
 | `@ljwei-stak/dsh-approval-gate` | `0.5.3` | 审批策略与审计 |
 | `@ljwei-stak/ppt-master-for-mgr` | `6.3.2` | 原生 PPT 技能、脚本和模板 |
+| `@ljwei-stak/dsh-watcher-for-mrg` | `0.4.0` | 只读工作路径与实际模型用量 |
 
 `schemastery@3.18.0` 和 PPT Master 的原生技能提供器也会作为运行依赖自动安装。上述依赖采用固定版本；更新 Router 时使用新 Router 包声明的依赖组合，而不是自动升级每个依赖到各自的 `latest`。
 
@@ -161,6 +179,7 @@ npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.2 ppt-master-for-mgr doct
 | `/router plan` | 查看当前会话最近一次路由方案 |
 | `/router safety` | 查看审批桥接状态和当前阶段上下文 |
 | `/router web` | 查看联网能力声明、宿主服务探测和任务策略 |
+| `/router watcher` | 只读查看当前会话的 Watcher 统计和加载状态 |
 
 默认模式为 `collective`。`/router safety` 和 `/router web` 是状态摘要，不代表审批服务或浏览器端到端诊断已通过；路由摘要不展示模型私有思维链。
 
@@ -214,7 +233,7 @@ Web / CLI 使用 `dsh plugin --profile web remove @ljwei-stak/model-router-galga
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.23
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.24
 ```
 
 Web / CLI 在两条命令的 `plugin` 后加 `--profile web`。其他重复依赖按实际报错处理，不要一次删除全部插件。没有重复条目时不需要执行这些移除命令。
@@ -230,7 +249,7 @@ dsh plugin add /absolute/path/to/model-router-galgame
 
 把路径替换为实际绝对路径，含空格时加引号；Web / CLI 使用 `dsh plugin --profile web add <实际路径>`。npm 包含可直接加载的构建产物，但不包含完整客户端源码、测试和原始素材。
 
-修改客户端源码后，在插件仓库运行 `npm test`、`npm run build:client` 和 `npm run check:client`。当前构建脚本依赖相邻的 `DSH-Desktop` 源码构建产物及 esbuild；仅安装本插件的 npm 依赖不足以建立完整构建环境。出现 `SKIP` 不算构建校验通过。
+克隆后先执行 `pnpm install --frozen-lockfile`。锁文件固定了构建浏览器客户端所需的 DSH SDK，不再要求相邻的 DSH Desktop 源码目录。修改客户端源码后，运行 `npm test`、`npm run build:client`、`npm run check:client` 和 `pnpm peers check`。出现 `SKIP` 不算构建校验通过。
 
 ## 数学路由模型
 

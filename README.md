@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, PPT generation skills, and approval integration in one npm package, and runs inside an existing DSH host.
 
-**Current release: 0.4.23** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**Current release: 0.4.24** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## Features
 
@@ -48,13 +48,34 @@ Story mode does not require provider credentials. Free mode requires a working m
 - **PPT Master** is bundled as a native DSH skill. In a normal work conversation, a PowerPoint/PPT/PPTX request can load `ppt-master` through the host's `skill` tool and follow its planning, SVG, validation, and PPTX export workflow.
 - Model Router keeps the host's skill catalog, loaded skill instructions, and file/terminal tools available when it chooses a model or advances a work stage. Use ordinary chat or the GAL conversation view for presentation work; story mode does not run tools, and free-play character dialogue is not the work agent.
 - The package includes the skill, Python scripts, and templates. Python dependencies require the explicit setup below; npm installation does not install Python or run pip. Generated presentations belong in the conversation's writable workspace.
-- Router 0.4.23 bundles PPT Master 6.3.2, which fixes PPTX staging-directory permissions under the Windows DSH sandbox with Python 3.13 or newer. Host sandbox and approval settings remain in effect.
+- Router 0.4.24 bundles PPT Master 6.3.2, which fixes PPTX staging-directory permissions under the Windows DSH sandbox with Python 3.13 or newer. Host sandbox and approval settings remain in effect.
+
+### Watcher work paths and model usage
+
+Router 0.4.24 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.0`](https://github.com/ljwei-stak/dsh-watcher-For_MRG).
+Open the eye button in the native session header from Chat or the GAL work view
+to inspect turns, parallel tools, retries, timing, and recorded token usage.
+The Watcher settings section summarizes local session usage; provider and model
+identities stay separate when Router switches models. Only reasoning already
+recorded by the provider is shown. Story and free-play dialogue are outside the
+native work-session statistics.
+
+`/router watcher` reads the current session's `watcherInsights` projection and
+reports whether it is loaded, together with Router's latest route. Watcher does
+not alter routing, prompts, tools, approvals, or model requests.
+
+Install the Router aggregate package once. Before installing it, check `dsh plugin list`
+in the same profile. If either upstream `dsh-watcher` or the scoped
+`@ljwei-stak/dsh-watcher-for-mrg` is listed as a standalone plugin, remove the listed
+package with `dsh plugin remove dsh-watcher` or
+`dsh plugin remove @ljwei-stak/dsh-watcher-for-mrg`. Router supplies its own pinned
+Watcher entry, and retaining either standalone entry would duplicate the loader ID.
 
 ### Separate plugin and desktop updates
 
 "GAL 视窗 → 项目更新" (GAL view → Project updates) checks the plugin's npm version and the official DSH Desktop version separately. It offers "仅更新 npm 插件" (Update only the npm plugin), "仅更新完整客户端" (Update only the full client), and "一键更新插件与客户端" (Update plugin and client). Desktop plugin installation runs through the authenticated host connection. Fully exit and restart DSH Desktop after a successful installation.
 
-A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.23` version and DSH Desktop's version are independent.
+A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.24` version and DSH Desktop's version are independent.
 
 ## Installation
 
@@ -76,7 +97,7 @@ Installing this npm package does not install DSH Desktop, model services, or a b
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.23
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.24
 ```
 
 3. After installation succeeds, use the desktop restart control, or explicitly quit from the system tray and reopen the app. Select the same profile. Closing the window may only hide the application.
@@ -91,7 +112,7 @@ If you do not have a global `dsh` but already have Node.js/npm and pnpm, replace
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.23
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.24
 dsh --profile web --dump-config
 ```
 
@@ -113,16 +134,17 @@ For desktop, run this in the DSH terminal opened by the app:
 dsh --dump-config
 ```
 
-For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all six plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
+For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all seven plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
 
-| Plugin | Pinned version for 0.4.23 | Purpose |
+| Plugin | Pinned version for 0.4.24 | Purpose |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.23` | Routing, GAL view, story/free modes, and update controls |
+| `@ljwei-stak/model-router-galgame` | `0.4.24` | Routing, GAL view, story/free modes, and update controls |
 | `@liustack/modlens` | `3.25.4` | Image understanding through compatible routes |
 | `@liustack/modsearch` | `5.10.1` | Search and page reading |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | Visible browser tools |
 | `@ljwei-stak/dsh-approval-gate` | `0.5.3` | Approval policies and auditing |
 | `@ljwei-stak/ppt-master-for-mgr` | `6.3.2` | Native PPT skill, scripts, and templates |
+| `@ljwei-stak/dsh-watcher-for-mrg` | `0.4.0` | Read-only work paths and actual model usage |
 
 `schemastery@3.18.0` and PPT Master's native skill provider are also installed automatically as runtime dependencies. These dependencies are pinned: updating Router uses the dependency combination declared by the new Router package, rather than updating every dependency to its own `latest`.
 
@@ -161,6 +183,7 @@ To play without a model API, open **"GAL视窗 → GAL游戏 → 剧情模式" (
 | `/router plan` | Show the latest routing plan for the current conversation |
 | `/router safety` | Show approval bridge status and the current stage context |
 | `/router web` | Show declared web capabilities, host service detection, and task strategy |
+| `/router watcher` | Read Watcher statistics and loading status for the current session |
 
 The default mode is `collective`. `/router safety` and `/router web` are status summaries; they do not certify that end-to-end approval or browser diagnostics have passed. Routing summaries do not expose private model chain-of-thought.
 
@@ -214,7 +237,7 @@ For example, only after confirming that ModLens is a duplicate standalone depend
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.23
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.24
 ```
 
 For Web / CLI, add `--profile web` after `plugin` in both commands. Handle other duplicate dependencies according to the actual error; do not remove all plugins at once. These removal commands are unnecessary when no duplicate entry exists.
@@ -230,7 +253,7 @@ dsh plugin add /absolute/path/to/model-router-galgame
 
 Replace the path with the actual absolute path and quote it if it contains spaces. For Web / CLI, use `dsh plugin --profile web add <actual-path>`. The npm package includes ready-to-load build output, but excludes the full client source, tests, and original assets.
 
-After modifying client source, run `npm test`, `npm run build:client`, and `npm run check:client` in the plugin repository. The current build script depends on build output from an adjacent `DSH-Desktop` source checkout and on esbuild. Installing this plugin's npm dependencies alone is not enough to set up the complete build environment. A `SKIP` result does not count as successful build verification.
+After cloning, run `pnpm install --frozen-lockfile`. The lockfile pins the DSH SDK used to build the browser client, so an adjacent DSH Desktop source checkout is not required. After modifying client source, run `npm test`, `npm run build:client`, `npm run check:client`, and `pnpm peers check`. A `SKIP` result does not count as successful build verification.
 
 ## Mathematical routing model
 

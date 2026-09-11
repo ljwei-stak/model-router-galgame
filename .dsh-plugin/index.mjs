@@ -28,6 +28,7 @@ import {
 } from './shared/web-routing.mjs'
 import { registerNpmUpdateRoute } from './shared/npm-update.mjs'
 import { registerGalGameRoutes } from './shared/gal-game-service.mjs'
+import { watcherStatus } from './shared/watcher.mjs'
 
 let settingsRuntimePromise
 let routerSettings = { ...DEFAULT_ROUTER_SETTINGS }
@@ -496,7 +497,7 @@ export function apply(ctx) {
     // the whole composer submission; the GAL client sends this command
     // without image bytes so the attachment remains available for the next
     // user turn.
-    input: { hint: 'mode collective|single | plan | safety', images: true },
+    input: { hint: 'mode collective|single | plan | safety | watcher', images: true },
     recordInput: true,
     handler: ({ agent, rawInput }) => {
       const state = stateFor(agent)
@@ -517,10 +518,17 @@ export function apply(ctx) {
       if (value === 'safety' || value === 'approval') {
         return { kind: 'success', text: JSON.stringify({ ...approvalGateStatus(ctx), context: approvalSafetyContext(state, state.lastStep) }) }
       }
+      if (value === 'watcher') {
+        const watcher = watcherStatus(ctx, agent)
+        return { kind: 'success', text: JSON.stringify({
+          ...watcher,
+          router: { mode: state.mode, lastRoute: watcher.insights?.turn?.route ?? null },
+        }) }
+      }
       if (value === 'web' || value === 'network') {
         return { kind: 'success', text: JSON.stringify({ ...webCapabilityStatus(ctx), context: webCapabilityForPlan(state.taskText, state.plan) }) }
       }
-      return { kind: 'error', text: '用法：/router mode collective、/router mode single、/router plan、/router safety 或 /router web' }
+      return { kind: 'error', text: '用法：/router mode collective、/router mode single、/router plan、/router safety、/router web 或 /router watcher' }
     },
   })
 

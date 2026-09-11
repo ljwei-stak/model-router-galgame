@@ -12,6 +12,9 @@
     # Register PPT Master in the host's native skill catalog.
     - id: ppt-master-for-mgr
       name: '@ljwei-stak/ppt-master-for-mgr'
+    # Watcher observes the native session log in Chat and GAL work views.
+    - id: dsh-watcher
+      name: '@ljwei-stak/dsh-watcher-for-mrg'
     # The router annotates multi-task approval requests; dsh-approval-gate
     # owns the Flash decision, human handoff, audit and snapshot UI.
     - id: dsh-approval-gate
