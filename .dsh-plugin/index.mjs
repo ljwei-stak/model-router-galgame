@@ -430,13 +430,13 @@ function createOpenCodeRepairScheduler(ctx) {
 }
 
 export function apply(ctx) {
-  ctx.inject?.(['connection', 'llm'], galCtx => {
+  ctx.inject?.(['connection', 'llm', 'webServer'], galCtx => {
     registerGalGameRoutes(galCtx)
   })
 
   // Desktop-only package mutation is exposed through an authenticated,
   // fixed-purpose route when the optional native capabilities are present.
-  ctx.inject?.(['connection', 'desktopProfiles', 'desktopPnpm'], desktopCtx => {
+  ctx.inject?.(['connection', 'desktopProfiles', 'desktopPnpm', 'webServer'], desktopCtx => {
     registerNpmUpdateRoute(desktopCtx, import.meta.url)
   })
 

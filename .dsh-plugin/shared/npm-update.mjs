@@ -296,13 +296,18 @@ export function createNpmUpdateHandler({
 }
 
 export function registerNpmUpdateRoute(ctx, moduleUrl) {
-  const connection = ctx.get?.('connection') ?? ctx.connection
-  const profiles = ctx.get?.('desktopProfiles') ?? ctx.desktopProfiles
-  const pnpm = ctx.get?.('desktopPnpm') ?? ctx.desktopPnpm
-  if (typeof connection?.rpc?.handle !== 'function'
+  const connection = ctx.connection ?? ctx.get?.('connection')
+  const profiles = ctx.desktopProfiles ?? ctx.get?.('desktopProfiles')
+  const pnpm = ctx.desktopPnpm ?? ctx.get?.('desktopPnpm')
+  const register = typeof connection?.register === 'function'
+    ? (channel, handler) => connection.register(ctx, channel, handler)
+    : typeof connection?.rpc?.handle === 'function'
+      ? (channel, handler) => connection.rpc.handle(channel, handler)
+      : null
+  if (register === null
     || typeof pnpm?.runPlugin !== 'function'
     || typeof profiles?.current?.dir !== 'string') return false
-  connection.rpc.handle(ROUTER_UPDATE_CHANNEL, createNpmUpdateHandler({
+  register(ROUTER_UPDATE_CHANNEL, createNpmUpdateHandler({
     moduleUrl,
     pnpm,
     profileDir: profiles.current.dir,

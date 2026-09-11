@@ -213,3 +213,25 @@ test('registers a dedicated RPC channel with the Desktop profile identity', asyn
   const result = await registration.handler('unknown', {})
   assert.equal(result.error.code, 'router/not-found')
 })
+
+test('update RPC registration prefers the caller-bound connection context', () => {
+  let channel
+  let owner
+  const connection = {
+    register(registrationOwner, name) {
+      owner = registrationOwner
+      channel = name
+    },
+    rpc: { handle: () => { throw new Error('rpc getter must not own the route') } },
+  }
+  const rawConnection = { rpc: { handle: () => { throw new Error('raw connection must not own the route') } } }
+  const ctx = {
+    connection,
+    desktopProfiles: { current: { dir: 'C:\\profile' } },
+    desktopPnpm: { runPlugin: async () => ({ code: 0 }) },
+    get: key => key === 'connection' ? rawConnection : undefined,
+  }
+  assert.equal(registerNpmUpdateRoute(ctx, 'file:///plugin/index.mjs'), true)
+  assert.equal(owner, ctx)
+  assert.equal(channel, ROUTER_UPDATE_CHANNEL)
+})

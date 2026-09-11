@@ -38,6 +38,24 @@ function user(text) {
   }
 }
 
+test('RPC routes declare the webServer service required by Host route registration', () => {
+  const injections = []
+  const settings = {
+    describe: () => [],
+    mutate: async () => undefined,
+  }
+  apply({
+    get: key => key === 'settings' ? settings : undefined,
+    settings,
+    inject: services => { injections.push(services) },
+    commands: { register: () => undefined },
+    logger: { debug: () => undefined, info: () => undefined, warn: () => undefined },
+    on: () => () => undefined,
+  })
+  assert.equal(injections.some(services => services.includes('connection') && services.includes('llm') && services.includes('webServer')), true)
+  assert.equal(injections.some(services => services.includes('connection') && services.includes('desktopProfiles') && services.includes('desktopPnpm') && services.includes('webServer')), true)
+})
+
 test('complex collective turns execute every planned routed stage and finish on synthesis', async () => {
   const { listeners } = fakeContext()
   const injected = []

@@ -344,6 +344,31 @@ test('authenticated RPC registers an isolated channel and retains usable model c
   assert.equal(registerGalGameRoutes({}), false)
 })
 
+test('RPC registration prefers the caller-bound connection context', () => {
+  let channel
+  let owner
+  const llm = {
+    listProviders: async () => [],
+    stream: async function * () {},
+  }
+  const connection = {
+    register(registrationOwner, name) {
+      owner = registrationOwner
+      channel = name
+    },
+    rpc: { handle: () => { throw new Error('rpc getter must not own the route') } },
+  }
+  const rawConnection = { rpc: { handle: () => { throw new Error('raw connection must not own the route') } } }
+  const ctx = {
+    connection,
+    llm,
+    get: key => key === 'connection' ? rawConnection : llm,
+  }
+  assert.equal(registerGalGameRoutes(ctx), true)
+  assert.equal(owner, ctx)
+  assert.equal(channel, GAL_GAME_CHANNEL)
+})
+
 test('host catalog selections pass unchanged through both authenticated RPC model calls', async () => {
   const input = request()
   let handler

@@ -287,11 +287,16 @@ export async function galGameCatalog(llm) {
 }
 
 export function registerGalGameRoutes(ctx) {
-  const connection = ctx.get?.('connection') ?? ctx.connection
-  const llm = ctx.get?.('llm') ?? ctx.llm
-  if (typeof connection?.rpc?.handle !== 'function' || typeof llm?.stream !== 'function') return false
+  const connection = ctx.connection ?? ctx.get?.('connection')
+  const llm = ctx.llm ?? ctx.get?.('llm')
+  const register = typeof connection?.register === 'function'
+    ? (channel, handler) => connection.register(ctx, channel, handler)
+    : typeof connection?.rpc?.handle === 'function'
+      ? (channel, handler) => connection.rpc.handle(channel, handler)
+      : null
+  if (register === null || typeof llm?.stream !== 'function') return false
   const service = createGalGameService({ generate: createHostGalGameGenerator(llm) })
-  connection.rpc.handle(GAL_GAME_CHANNEL, async (endpoint, payload, requestSignal = new AbortController().signal) => {
+  register(GAL_GAME_CHANNEL, async (endpoint, payload, requestSignal = new AbortController().signal) => {
     const timeout = AbortSignal.timeout(GAL_GAME_TIMEOUT_MS)
     const signal = AbortSignal.any([requestSignal, timeout])
     try {

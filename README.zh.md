@@ -4,7 +4,7 @@
 
 适用于 DeepSeek Harness / DSH Desktop 的模型路由与 GAL 对话插件。它把任务分配、费用估算、模型角色对话、联网工具、PPT 生成技能和审批适配整合为一个 npm 插件包，需要在已有的 DSH 宿主中使用。
 
-**当前发布版本：0.4.25** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**当前发布版本：0.4.26** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## 功能介绍
 
@@ -42,18 +42,18 @@
 - **Ego Browser**：为需要 JavaScript、登录态或页面交互的任务提供可见浏览器工具。路由器向模型提供搜索失败后切换浏览器的指导；验证码和人机验证交由用户完成。
 - **审批适配**：在多任务沙箱升级请求中附加工作包、阶段、模型和任务数量。审批决定、人工确认、审计与学习由 `@ljwei-stak/dsh-approval-gate` 和宿主权限策略负责，安装路由器不等于开启自动批准。
 - **OpenCode Zen 兼容**：修复误填成官方网页地址的 OpenCode 端点覆盖，保留自定义网关。
-- **DSH 2.0.7 会话兼容**：路由、Persona 与联网指令只使用宿主支持的插件消息来源类型，避免 DSH 升级会话格式后无法重新加载 Router 消息。
+- **DSH 2.0.7 兼容**：路由、Persona 与联网指令只使用宿主支持的插件消息来源类型，并声明 GAL 与更新 RPC 注册所需的 `webServer` 服务。
 
 ### PPT Master 演示文稿生成
 
 - **PPT Master** 以 DSH 原生 skill 随包加载。在普通工作会话中收到 PowerPoint/PPT/PPTX 需求后，模型可通过宿主 `skill` 工具加载 `ppt-master`，按规划、SVG 制作、检查和 PPTX 导出的流程执行。
 - Model Router 在选择模型和推进工作阶段时保留宿主技能目录、已加载的技能指令及文件/终端工具。制作 PPT 应使用普通聊天或 GAL 工作会话；剧情模式不调用工具，自由模式的角色对话也不是工作代理。
 - 包内包含技能、Python 脚本和模板。Python 依赖需按下方步骤主动安装，npm 安装不会自动安装 Python 或运行 pip。生成的演示文稿保存在会话可写工作目录中。
-- Router 0.4.25 随包加载 PPT Master 6.3.2，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误，宿主沙箱和审批设置仍然生效。
+- Router 0.4.26 随包加载 PPT Master 6.3.2，修复 Python 3.13 及更新版本在 Windows DSH 沙箱中导出 PPTX 时的临时目录权限错误，宿主沙箱和审批设置仍然生效。
 
 ### Watcher 工作路径与模型用量
 
-Router 0.4.25 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.0`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)。
+Router 0.4.26 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.0`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)。
 在普通对话或 GAL 工作视图中，点击原生会话标题栏的眼睛按钮，可查看轮次、并行工具、
 重试、耗时和已记录的 token 用量。设置中的 Watcher 页面汇总本地会话用量；Router
 切换模型时按供应商和模型分别统计。推理记录只显示供应商已写入会话的内容。
@@ -72,7 +72,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 “GAL 视窗 → 项目更新”分别检查插件 npm 版本和官方 DSH Desktop 版本。支持“仅更新 npm 插件”“仅更新完整客户端”和“一键更新插件与客户端”。桌面端插件安装通过已认证的宿主连接执行，成功后需要完全退出并重启 DSH Desktop。
 
-普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.25` 与 DSH Desktop 的版本号相互独立。
+普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.26` 与 DSH Desktop 的版本号相互独立。
 
 ## 安装
 
@@ -94,7 +94,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.25
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
 ```
 
 3. 安装成功后，使用桌面端的重启入口，或从托盘明确退出后重新打开，仍选择刚才的 profile。仅关闭窗口可能只是隐藏应用。
@@ -109,7 +109,7 @@ dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/m
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.25
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
 dsh --profile web --dump-config
 ```
 
@@ -133,9 +133,9 @@ dsh --dump-config
 
 Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含以下七个插件，且没有重复 loader ID。配置导出不能替代实际启动验证；只需安装 Router 聚合包，依赖和 bundle 条目会自动加入。
 
-| 插件 | 0.4.25 固定依赖版本 | 用途 |
+| 插件 | 0.4.26 固定依赖版本 | 用途 |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.25` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
+| `@ljwei-stak/model-router-galgame` | `0.4.26` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
 | `@liustack/modlens` | `3.25.4` | 兼容路由的图片理解 |
 | `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
@@ -234,7 +234,7 @@ Web / CLI 使用 `dsh plugin --profile web remove @ljwei-stak/model-router-galga
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.25
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.26
 ```
 
 Web / CLI 在两条命令的 `plugin` 后加 `--profile web`。其他重复依赖按实际报错处理，不要一次删除全部插件。没有重复条目时不需要执行这些移除命令。
