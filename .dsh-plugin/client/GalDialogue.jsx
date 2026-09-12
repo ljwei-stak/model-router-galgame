@@ -1,7 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronRight, LoaderCircle } from 'lucide-react'
 import { DialogueBox } from './DialogueBox.jsx'
-import { DIALOGUE_THEMES } from './gal-dialogue-themes.mjs'
+import { STORY_DIALOGUE_THEMES as DIALOGUE_THEMES } from './gal-dialogue-themes.mjs'
 import { DIALOGUE_FRAME_ASSETS } from './gal-dialogue-assets.mjs'
 import { GAL_DIALOGUE_CSS } from './gal-dialogue-styles.mjs'
 

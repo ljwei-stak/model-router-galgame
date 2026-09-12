@@ -107,6 +107,8 @@ async function typographyWithin(container) {
 
 try {
   page = await browser.newPage({ viewport: { width: 1440, height: 960 } })
+  // This regression suite deliberately exercises the preserved first edition.
+  await page.addInitScript(key => localStorage.setItem(`${key}:episode`, 'legacy'), storyKey)
   const errors = []
   const apiCalls = []
   page.on('pageerror', error => errors.push(error.message))

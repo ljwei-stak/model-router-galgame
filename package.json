@@ -1,6 +1,6 @@
 {
   "name": "@ljwei-stak/model-router-galgame",
-  "version": "0.4.27",
+  "version": "0.4.28",
   "type": "module",
   "description": "DeepSeek Harness plugin: adaptive model routing, cost analysis and GAL view",
   "repository": {
@@ -47,6 +47,8 @@
     "README.zh.md",
     "INSTALLATION_GUIDE.zh.md",
     "GAL_GAME_CONCEPT.zh.md",
+    "GAL_STORY_V2_OUTLINE.zh.md",
+    "大模型娘人物设定.md",
     "GAL_GAME_PREVIEW.md",
     "MODLENS_DEPLOYMENT.md",
     "LICENSE"

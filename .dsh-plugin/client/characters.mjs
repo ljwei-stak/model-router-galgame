@@ -16,6 +16,14 @@ import mimo from '../../aipicture/Mimo1.png'
 import minimax from '../../aipicture/Minmax1.png'
 import opencode from '../../aipicture/opencode1.png'
 import qwen from '../../aipicture/Qwen1.png'
+import huggingface from '../../aipicture/huggingface.webp'
+import llama from '../../aipicture/llama.webp'
+import rwkv from '../../aipicture/rwkv.webp'
+import perplexity from '../../aipicture/perplexity.webp'
+import github from '../../aipicture/github.webp'
+import gitlab from '../../aipicture/gitlab.webp'
+import gitee from '../../aipicture/gitee.webp'
+import cloudflare from '../../aipicture/cloudflare.webp'
 import { CHARACTER_LABELS, characterKeyForModel } from './character-identity.mjs'
 
 export { CHARACTER_LABELS, characterKeyForModel } from './character-identity.mjs'
@@ -35,6 +43,7 @@ export const CHARACTER_IMAGES = Object.freeze({
   minimax,
   opencode,
   qwen,
+  huggingface, llama, rwkv, perplexity, github, gitlab, gitee, cloudflare,
 })
 
 export function characterForModel(model, provider = '') {

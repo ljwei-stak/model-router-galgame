@@ -1,4 +1,5 @@
 export const GAL_GAME_CSS = `
+.gg-episode-list{display:grid;gap:12px}.gg-episode-card{border:1px solid #dce4dd;border-radius:6px;padding:14px}.gg-episode-card h3,.gg-chapter-list h3{margin:0 0 6px;font-size:14px;color:#355d49}.gg-episode-card p,.gg-chapter-list p{margin:0 0 12px;color:#607468}.gg-chapter-list{display:grid;gap:9px;margin-top:22px}.gg-chapter-list>.gg-button{justify-content:space-between;text-align:left}.gg-story .gg-header{flex-wrap:wrap}.gg-story .gg-header-actions{margin-left:auto}.gg-story .gg-brand{flex:1 1 165px}
 .gg-mode-bar{position:relative;z-index:9}
 .gg-module .gg-root{z-index:9}
 .gg-gallery-roster{display:flex!important;overflow-x:auto;gap:6px!important;padding:2px 1px 8px;scrollbar-width:thin;scrollbar-color:#9bb0a2 transparent}.gg-gallery-roster>button{flex:0 0 126px;min-height:49px!important}.gg-gallery-roster>button:focus-visible{outline:2px solid #477663;outline-offset:-2px}

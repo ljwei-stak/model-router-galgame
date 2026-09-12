@@ -16,3 +16,16 @@ export const DIALOGUE_THEMES = Object.freeze({
   opencode: theme('OpenCode Zen', '小禅', 'terminal', '#a7b39a', '#e9efe5', '#313932', '#7a8c77'),
   qwen: theme('Qwen', '百科工匠', 'lattice', '#80b89a', '#edf7f0', '#29483e', '#7da68f'),
 })
+
+// Story organizations have presentation identities, never router/provider entries.
+export const STORY_DIALOGUE_THEMES = Object.freeze({
+  ...DIALOGUE_THEMES,
+  huggingface: theme('Hugging Face', '百模协会会长', 'community', '#896000', '#383020', '#fff9dd', '#d4b454'),
+  llama: theme('Llama', '火种牧人', 'hearth', '#755176', '#39323e', '#faf2fb', '#b797b9'),
+  rwkv: theme('RWKV', '渡鸦行者', 'raven', '#c8b6f2', '#f1eaf9', '#32283d', '#8a729f'),
+  perplexity: theme('Perplexity', '证据巡礼者', 'citation', '#2e727b', '#273e44', '#e8f9fb', '#79b7bf'),
+  github: theme('GitHub', '公开变更簿保管人', 'code-port', '#a8dab7', '#ecf7ef', '#273b30', '#759e80'),
+  gitlab: theme('GitLab', '流水线监理', 'pipeline', '#a44f18', '#493a2e', '#fff4e7', '#dc9a63'),
+  gitee: theme('Gitee', '镜像港务官', 'mirror', '#bd6369', '#fff0f1', '#462d35', '#b97b84'),
+  cloudflare: theme('Cloudflare', '桥口守卫', 'gateway', '#97531e', '#493627', '#fff2df', '#d5a474'),
+})

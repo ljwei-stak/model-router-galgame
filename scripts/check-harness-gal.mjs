@@ -92,6 +92,8 @@ function assertGeometry(fits) {
 
 try {
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+  // Keep the original story/free-mode regression suite on the legacy episode.
+  await page.addInitScript(key => localStorage.setItem(`${key}:episode`, 'legacy'), storyKey)
   const errors = []
   let gameRpcCalls = 0
   page.on('pageerror', error => errors.push(error.message))

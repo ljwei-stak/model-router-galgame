@@ -13,6 +13,8 @@ export const CHARACTER_LABELS = Object.freeze({
   minimax: 'MiniMax',
   opencode: 'OpenCode Zen',
   qwen: 'Qwen',
+  huggingface: 'Hugging Face', llama: 'Llama', rwkv: 'RWKV', perplexity: 'Perplexity',
+  github: 'GitHub', gitlab: 'GitLab', gitee: 'Gitee', cloudflare: 'Cloudflare',
 })
 
 /** Resolve a provider/model id to the corresponding maid character key. */

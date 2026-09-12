@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Bug, Check, Download, History, MapPin, Palette, Pause, Play, RotateCcw, Save, Settings2, Upload, X } from 'lucide-react'
-import { STORY_TITLE, STORY_CHARACTERS, createStory, normalizeStory, currentStoryNode, advanceStory, storyHistory } from '../shared/gal-story.mjs'
-import { readStory, readStorySlots, writeStory, STORY_STORAGE_KEY } from './gal-story-storage.mjs'
+import { ArrowRight, BookOpen, Bug, Check, Download, History, MapPin, Palette, Pause, Play, RotateCcw, Save, Settings2, Upload, X } from 'lucide-react'
+import { STORY_EPISODES, STORY_CHARACTERS, getStoryEpisode, createStory, normalizeStory, currentStoryNode, advanceStory, storyHistory } from '../shared/gal-story-catalog.mjs'
+import { readStory, readStorySlots, writeStory, STORY_STORAGE_KEY, episodeStorageKey, selectedStoryEpisode } from './gal-story-storage.mjs'
 import { CHARACTER_IMAGES } from './characters.mjs'
 import { expressionFor } from './gal-game-expressions.mjs'
 import { GalDialogue } from './GalDialogue.jsx'
@@ -13,10 +13,30 @@ const storage = () => { try { return window.localStorage } catch { return null }
 const speakerName = key => key === 'player' ? '你' : key === 'narrator' ? '旁白' : STORY_CHARACTERS[key] || key
 
 export function GalStoryView({ storageKey = STORY_STORAGE_KEY, scene: dialogueScene, assetsMap, sessionState, onStateChange }) {
+  const [episodeId, setEpisodeId] = useState(() => {
+    if (sessionState?.episodeId) return sessionState.episodeId
+    try { return selectedStoryEpisode(storage(), storageKey) } catch { return 'bridges' }
+  })
+  const sessions = useRef(sessionState?.sessions || {})
+  function chooseEpisode(next) {
+    if (next === episodeId) return
+    setEpisodeId(next)
+    try { storage()?.setItem(`${storageKey}:episode`, next) } catch { /* Session memory still retains the selected episode. */ }
+    onStateChange?.({ episodeId: next, sessions: { ...sessions.current } })
+  }
+  function updateSession(next) {
+    sessions.current[episodeId] = next
+    onStateChange?.({ episodeId, sessions: { ...sessions.current } })
+  }
+  return <StoryReader key={`${storageKey}:${episodeId}`} storageKey={episodeStorageKey(storageKey, episodeId)} episodeId={episodeId} onChooseEpisode={chooseEpisode} scene={dialogueScene} assetsMap={assetsMap} sessionState={sessions.current[episodeId]} onStateChange={updateSession} />
+}
+
+function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueScene, assetsMap, sessionState, onStateChange }) {
+  const episode = STORY_EPISODES.find(item => item.id === episodeId)
   const [initial] = useState(() => {
     if (sessionState) return sessionState
-    try { return { state: readStory(storage(), storageKey), error: '' } }
-    catch (error) { return { state: createStory(), error: error.message } }
+    try { return { state: readStory(storage(), storageKey, episodeId), error: '' } }
+    catch (error) { return { state: createStory(episodeId), error: error.message } }
   })
   const [state, setState] = useState(initial.state)
   const stateRef = useRef(state)
@@ -42,7 +62,7 @@ export function GalStoryView({ storageKey = STORY_STORAGE_KEY, scene: dialogueSc
   const hasChoices = Boolean(node.choices?.length)
 
   useEffect(() => {
-    try { setSlots(readStorySlots(storage(), storageKey)) }
+    try { setSlots(readStorySlots(storage(), storageKey, episodeId)) }
     catch (slotError) { setError(slotError.message) }
   }, [storageKey])
 
@@ -86,7 +106,7 @@ export function GalStoryView({ storageKey = STORY_STORAGE_KEY, scene: dialogueSc
     setState(next)
     setShown(animate ? 0 : currentStoryNode(next).text.length)
     try {
-      writeStory(storage(), storageKey, next)
+      writeStory(storage(), storageKey, next, episodeId)
       protectedSave.current = false
       setError('')
       onStateChange?.({ state: next, error: '', protected: false })
@@ -123,7 +143,7 @@ export function GalStoryView({ storageKey = STORY_STORAGE_KEY, scene: dialogueSc
     const url = URL.createObjectURL(new Blob([JSON.stringify({ kind: 'model-router-gal-story-save', savedAt: new Date().toISOString(), state }, null, 2)], { type: 'application/json' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'model-city-story.json'
+    anchor.download = `model-city-story-${episodeId}.json`
     anchor.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
@@ -137,20 +157,27 @@ export function GalStoryView({ storageKey = STORY_STORAGE_KEY, scene: dialogueSc
       const raw = JSON.parse(await file.text())
       if (raw.kind !== 'model-router-gal-story-save') throw new Error('请选择剧情模式导出的存档。')
       const next = normalizeStory(raw.state)
+      if (getStoryEpisode(next).id !== episodeId) throw new Error(`这是《${getStoryEpisode(next).label}》存档，请在“剧目与章节”中切换后导入。`)
       setConfirm({ title: '导入剧情存档？', detail: '当前剧情自动存档将被替换。', action: () => { store(next, true); setPanel(null); setNotice('剧情存档已导入') } })
     } catch (importError) { setError(importError.message || '剧情存档无法读取。') }
   }
 
   function restart() {
     setAuto(false)
-    setConfirm({ title: '重新开始剧情？', detail: '当前剧情自动存档将被替换，手动存档会保留。', action: () => { store(createStory(), true); setPanel(null); setNotice('新故事已经开始') } })
+    setConfirm({ title: '重新开始剧情？', detail: '当前剧目的自动存档将被替换，手动存档会保留。', action: () => { store(createStory(episodeId), true); setPanel(null); setNotice('新故事已经开始') } })
   }
 
-  return <div className="gg-root gg-story" data-testid="gal-story" data-node-id={node.id} data-debug-enabled={debug}>
+  function startChapter(chapter) {
+    setAuto(false)
+    setConfirm({ title: `从《${chapter.title}》开始试玩？`, detail: '本剧目的自动存档将被替换，手动存档保留。章节独立起点不继承之前的选择；完整体验请从序章开始。', action: () => { store(createStory(episodeId, { chapterId: chapter.id }), true); setPanel(null); setNotice('章节试玩已经开始') } })
+  }
+
+  return <div className="gg-root gg-story" data-testid="gal-story" data-node-id={node.id} data-episode-id={episodeId} data-chapter-id={node.chapterId || ''} data-debug-enabled={debug}>
     <style>{GAL_GAME_CSS}</style>
     <header className="gg-header">
-      <div className="gg-brand"><h1>{STORY_TITLE}</h1></div>
+      <div className="gg-brand"><h1>{episode.title}</h1></div>
       <div className="gg-header-actions">
+        <Tool label="剧目与章节" icon={BookOpen} onClick={() => { setAuto(false); setPanel('episodes') }} />
         <Tool label={auto ? '暂停自动播放' : '自动播放'} icon={auto ? Pause : Play} aria-pressed={auto} disabled={Boolean(node.ending)} onClick={() => setAuto(value => !value)} />
         <Tool label="对话回顾" icon={History} onClick={() => setPanel('history')} />
         <Tool label="存档与读档" icon={Save} onClick={() => setPanel('saves')} />
@@ -171,6 +198,14 @@ export function GalStoryView({ storageKey = STORY_STORAGE_KEY, scene: dialogueSc
       </div>
     </main>
     {notice && <div className="gg-notice" role="status"><Check size={15} />{notice}</div>}
+
+    {panel === 'episodes' && <Panel title="剧目与章节" onClose={() => setPanel(null)}>
+      <div className="gg-episode-list">{STORY_EPISODES.map(item => <article className="gg-episode-card" key={item.id}>
+        <h3>{item.label}{item.id === episodeId ? ' · 当前剧目' : ''}</h3><p>{item.description}</p>
+        <button className="gg-button" type="button" onClick={() => { if (item.id === episodeId) setPanel(null); else onChooseEpisode(item.id) }}>继续{item.label}</button>
+      </article>)}</div>
+      {episode.chapters.length > 0 && <div className="gg-chapter-list"><h3>章节试玩</h3><p>从序章顺序阅读可保留所有选择的后续影响。也可直接从以下章节开始。</p>{episode.chapters.map(chapter => <button className="gg-button" type="button" key={chapter.id} onClick={() => startChapter(chapter)}>试玩：{chapter.title}<ArrowRight size={14} /></button>)}</div>}
+    </Panel>}
 
     {panel === 'history' && <Panel title="对话回顾" wide onClose={() => setPanel(null)}><div className="gg-history">{history.map((line, index) => <React.Fragment key={`${line.id}:${index}`}>{line.location !== history[index - 1]?.location && <div className="gg-history-scene">{line.location} · {line.time}</div>}<article className={`gg-history-line ${line.speaker === 'player' ? 'is-player' : ''}`}><span>{speakerName(line.speaker)}</span><p>{line.text}</p></article></React.Fragment>)}<div ref={historyRef} /></div></Panel>}
 

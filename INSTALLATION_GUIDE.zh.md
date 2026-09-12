@@ -1,6 +1,6 @@
 # Model Router + GALGame 安装指南
 
-本指南适用于 `@ljwei-stak/model-router-galgame@0.4.27`。当前完整实机验证环境为
+本指南适用于 `@ljwei-stak/model-router-galgame@0.4.28`。当前完整实机验证环境为
 DSH Desktop 2.0.7 / `@deepseek-ai/dsh@0.1.5-rc.1`。功能介绍、路由算法和 GAL
 玩法见 [README.zh.md](README.zh.md)。
 
@@ -53,11 +53,11 @@ npx --yes --package=@deepseek-ai/dsh@0.1.5-rc.1 dsh --version
 
 ## 2. 了解聚合包
 
-只需把 Router 安装为 profile 的直接依赖。0.4.27 会固定加载以下组合：
+只需把 Router 安装为 profile 的直接依赖。0.4.28 会固定加载以下组合：
 
 | 包 | 版本 | 用途 |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.27` | 模型路由、GAL 视窗与更新入口 |
+| `@ljwei-stak/model-router-galgame` | `0.4.28` | 模型路由、GAL 视窗与更新入口 |
 | `@liustack/modlens` | `3.25.4` | 图片理解 |
 | `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
@@ -82,7 +82,7 @@ dsh plugin remove @ljwei-stak/dsh-watcher-for-mrg
 在应用设置页打开的 **DSH 终端**中执行：
 
 ```powershell
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.28
 dsh plugin list
 dsh --dump-config
 ```
@@ -98,7 +98,7 @@ dsh --dump-config
 
 ```powershell
 dsh plugin --profile web list
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.28
 dsh --profile web --dump-config
 dsh web --no-open
 ```
@@ -106,7 +106,7 @@ dsh web --no-open
 如果没有全局 `dsh`，每条命令使用以下形式：
 
 ```powershell
-npx --yes --package=@deepseek-ai/dsh@0.1.5-rc.1 dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.27
+npx --yes --package=@deepseek-ai/dsh@0.1.5-rc.1 dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.28
 npx --yes --package=@deepseek-ai/dsh@0.1.5-rc.1 dsh --profile web --dump-config
 ```
 
@@ -133,7 +133,7 @@ model-router-galgame
 确认重复的直接安装项。
 
 DSH Desktop 2.0.7 的 package-inventory 元数据扩展可能无法从 Desktop ASAR 基准地址
-解析第三方 loader，并因此阻断官方 DeepSeek 请求。Router 0.4.27 的 bundle 会停用这
+解析第三方 loader，并因此阻断官方 DeepSeek 请求。Router 0.4.28 的 bundle 会停用这
 一个元数据扩展；模型输入、工具、会话日志、Watcher 和 Router 路由仍保持启用。
 
 ## 6. 准备 PPT Master 的 Python 环境
@@ -222,9 +222,11 @@ PPT 快速验证可在有写权限的普通工作会话或 GAL 工作会话中�
 确认代理先加载 `ppt-master`，再生成和检查 PPTX。剧情模式和自由模式的角色对话不
 承担 PPT 工作流。宿主沙箱和审批策略继续生效。
 
-0.4.27 已在 Windows DSH Desktop 2.0.7 上完成两次冷启动检查，并完成
-1 页可编辑 PPTX 的实际生成；该次 PPT 会话 6 次工具调用全部成功，质量检查为 0
-错误、0 警告。
+0.4.28 已以候选 tarball 直接安装到 Windows DSH Desktop 2.0.7 的实际 desktop
+profile，并通过冷启动与完整页面交互验证：四个试玩章节全部可达，11 处两难选择、
+8 名新增/组织角色立绘、手动存读档、刷新恢复、双剧目隔离和章节直达均通过；页面
+异常与剧情模型请求均为 0。上一版 0.4.27 还完成了 1 页可编辑 PPTX 的实际生成，
+该次 PPT 会话 6 次工具调用全部成功，质量检查为 0 错误、0 警告。
 
 ## 8. 已知宿主警告
 
@@ -244,7 +246,7 @@ PPT 快速验证可在有写权限的普通工作会话或 GAL 工作会话中�
 | 安装成功但没有 GAL 标签 | 确认安装和启动使用同一 profile 与 `DSH_HOME`，再完全退出并重启宿主。 |
 | `duplicate loader entry id` | 列出当前 profile 的直接依赖，只移除确认重复的独立 bundle。 |
 | `EADDRINUSE` 或 profile 已被占用 | 正常关闭使用该 profile 的旧宿主进程；仅换端口不会解除 profile 锁。 |
-| 普通 DeepSeek 请求被第三方包解析错误阻断 | 确认 0.4.27 的 `plugin-package-inventory-deepseek` 补丁已经出现在组合配置中。 |
+| 普通 DeepSeek 请求被第三方包解析错误阻断 | 确认 0.4.28 的 `plugin-package-inventory-deepseek` 补丁已经出现在组合配置中。 |
 | 图片不能识别 | 检查 ModLens 路由、模型能力与凭据；GAL 附件不会直接解析 PDF/DOCX 正文。 |
 | 找不到 PPT skill | 检查 `ppt-master-for-mgr` loader、原生 `skill` 工具和当前代理预设。 |
 | PPT Python 导入失败 | 对工作代理实际使用的同一 `--python-root` 依次执行 `doctor`、`setup`、`doctor`。 |
@@ -288,7 +290,7 @@ dsh plugin --profile web remove @ljwei-stak/model-router-galgame
 
 ---
 
-**适用 Router 版本**：0.4.27
+**适用 Router 版本**：0.4.28
 
 **完整验证宿主**：DSH Desktop 2.0.7 / `@deepseek-ai/dsh@0.1.5-rc.1`
 
