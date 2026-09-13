@@ -11,8 +11,15 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 ROOT = Path(__file__).resolve().parent.parent
 ARTWORK = ROOT / "output" / "imagegen" / "dialogue-frames"
 MODULE = ROOT / ".dsh-plugin" / "client" / "gal-dialogue-assets.mjs"
-KEYS = ("deepseek", "harness", "chatgpt", "claude", "doubao", "ernie", "gemini", "glm", "grok", "kimi", "mimo", "minimax", "opencode", "qwen")
-LIGHT_PAPER = {"chatgpt": "#514544", "doubao": "#34452c", "ernie": "#51463e", "mimo": "#345154"}
+KEYS = (
+    "deepseek", "harness", "chatgpt", "claude", "doubao", "ernie", "gemini", "glm", "grok", "kimi", "mimo", "minimax", "opencode", "qwen",
+    "huggingface", "llama", "rwkv", "perplexity", "github", "gitlab", "gitee", "cloudflare",
+)
+LIGHT_PAPER = {
+    "chatgpt": "#514544", "doubao": "#34452c", "ernie": "#51463e", "mimo": "#345154",
+    "llama": "#433747", "perplexity": "#d9f2f1", "gitlab": "#f7e9df",
+    "gitee": "#fff0f1", "cloudflare": "#493627",
+}
 DEFAULT_INSETS = {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}
 DEFAULT_NAMEPLATE = {"left": 0.19, "top": 0.15, "width": 0.19, "height": 0.14}
 NAMEPLATE_ART = {
@@ -33,6 +40,10 @@ NAMEPLATE_SAFE = {
     "mimo": (0.161, 0.213, 0.189, 0.092), "minimax": (0.178, 0.16, 0.184, 0.09),
     "qwen": (0.173, 0.191, 0.186, 0.096),
     "opencode": (0.181, 0.205, 0.192, 0.082),
+    "huggingface": (0.175, 0.16, 0.195, 0.105), "llama": (0.175, 0.16, 0.195, 0.105),
+    "rwkv": (0.175, 0.16, 0.195, 0.105), "perplexity": (0.175, 0.16, 0.195, 0.105),
+    "github": (0.175, 0.16, 0.195, 0.105), "gitlab": (0.175, 0.16, 0.195, 0.105),
+    "gitee": (0.175, 0.16, 0.195, 0.105), "cloudflare": (0.175, 0.16, 0.195, 0.105),
 }
 
 
@@ -53,7 +64,11 @@ def remove_exterior_chroma(image, include_enclosed=False):
         red, green, blue, _ = pixels[x, y]
         if include_enclosed:
             return red >= 170 and blue >= 170 and green <= 100 and min(red, blue) - green > 110 and abs(red - blue) < 70
-        return red >= 225 and blue >= 225 and green <= 35
+        # Image generators often anti-alias the requested RGB(255, 0, 255)
+        # field into a small family of saturated pinks. Only pixels connected
+        # to the canvas edge are removed, so this broader key cannot erase an
+        # enclosed character ornament.
+        return red >= 215 and blue >= 215 and green <= 90 and min(red, blue) - green > 135 and abs(red - blue) < 75
 
     def enqueue(x, y):
         if not marks[x, y] and is_key(x, y):
@@ -177,7 +192,13 @@ def prepare(keys):
         if not source.is_file():
             continue
         with Image.open(source) as image:
-            result, treatment = remove_exterior_chroma(image, include_enclosed=key in {"ernie", "grok", "minimax", "opencode"})
+            result, treatment = remove_exterior_chroma(
+                image,
+                include_enclosed=key in {
+                    "ernie", "grok", "minimax", "opencode", "huggingface", "llama", "rwkv", "perplexity",
+                    "github", "gitlab", "gitee", "cloudflare",
+                },
+            )
         edge_noise = 0
         if key != "deepseek":
             result, edge_noise = remove_primary_edge_noise(result)

@@ -4,7 +4,18 @@ import { STORY_GRAPH, STORY_CHAPTERS, STORY_CHARACTERS, STORY_EVIDENCE, STORY_CO
 import { STORY_DIALOGUE_THEMES } from '../.dsh-plugin/client/gal-dialogue-themes.mjs'
 import { CHARACTER_LABELS, characterKeyForModel } from '../.dsh-plugin/client/character-identity.mjs'
 import { MINIMAX_SCORE_IDS, storyScoreFor } from '../.dsh-plugin/client/gal-story-audio.mjs'
+import { storyPresentationFor } from '../.dsh-plugin/shared/gal-story-v2-phase3.mjs'
 import { readFileSync } from 'node:fs'
+
+function webpHasAlpha(bytes) {
+  for (let offset = 12; offset + 8 <= bytes.length;) {
+    const chunk = bytes.subarray(offset, offset + 4).toString('ascii')
+    const size = bytes.readUInt32LE(offset + 4)
+    if (chunk === 'ALPH' || (chunk === 'VP8X' && (bytes[offset + 8] & 0x10))) return true
+    offset += 8 + size + (size & 1)
+  }
+  return false
+}
 
 function play(selections = {}, options = {}) {
   let state = createStory(options)
@@ -128,6 +139,7 @@ test('global stance axes, character commitments and evidence inventory are immut
 
 test('new cast and fixed organizations have local art, unique presentation, and no fake callable provider', () => {
   const script = readFileSync(new URL('../.dsh-plugin/client/characters.mjs', import.meta.url), 'utf8')
+  const frameModule = readFileSync(new URL('../.dsh-plugin/client/gal-dialogue-assets.mjs', import.meta.url), 'utf8')
   const history = storyHistory(play())
   for (const key of ['huggingface', 'llama', 'rwkv', 'perplexity', 'github', 'gitlab', 'gitee', 'cloudflare']) {
     assert.ok(history.some(line => line.speaker === key), `${key} never appears`)
@@ -135,6 +147,9 @@ test('new cast and fixed organizations have local art, unique presentation, and 
     assert.ok(script.includes(`../../aipicture/${key}.webp`))
     const bytes = readFileSync(new URL(`../aipicture/${key}.webp`, import.meta.url))
     assert.equal(bytes.subarray(8, 12).toString(), 'WEBP')
+    assert.ok(frameModule.includes(`dialogue-frames/${key}.webp`), `${key} has no raster dialogue frame`)
+    const frame = readFileSync(new URL(`../output/imagegen/dialogue-frames/${key}.webp`, import.meta.url))
+    assert.ok(webpHasAlpha(frame), `${key} dialogue frame has no alpha channel`)
   }
   for (const key of ['huggingface', 'github', 'gitlab', 'gitee', 'cloudflare']) assert.equal(characterKeyForModel('unknown', key), 'harness')
   assert.equal(characterKeyForModel('claude-sonnet', 'github'), 'claude')
@@ -208,7 +223,22 @@ test('MiniMax score themes, recurring sound clues and complete-cast expressions 
   const bridge = currentStoryNode(createStory({ chapterId: 'bridges-night' }))
   assert.equal(kimi.soundCue.id, 'kimi-flute')
   assert.equal(claude.soundCue.id, 'claude-verse')
-  assert.equal(bridge.soundCue.id, 'bridge-anomaly')
+  assert.equal(bridge.musicTheme, 'kimi-flute')
+  assert.equal(bridge.soundCue, null)
+  const incident = storyPresentationFor({ id: 'incident-01', chapterId: 'bridges-night', speaker: 'narrator', text: '目录突然改变。' })
+  assert.equal(incident.musicTheme, 'bridge-anomaly')
+  assert.equal(incident.soundCue.id, 'bridge-anomaly')
+  assert.equal(storyPresentationFor({ id: 'protocol-entry-01', chapterId: 'protocol-composition', speaker: 'harness', text: '' }).musicTheme, 'glass-dome')
+  assert.equal(storyPresentationFor({ id: 'composition-audit-01', chapterId: 'protocol-composition', speaker: 'kimi', text: '拍号冲突。' }).musicTheme, 'bridge-anomaly')
+
+  const characterModule = readFileSync(new URL('../.dsh-plugin/client/characters.mjs', import.meta.url), 'utf8')
+  assert.match(characterModule, /Claude1\.png/)
+  assert.match(characterModule, /Claude\.png/)
+  assert.match(expressions, /\['determined', 'angry', 'surprised'\]/)
+  for (const emotion of ['happy', 'shy', 'sad', 'angry', 'thoughtful']) {
+    const bytes = readFileSync(new URL(`../output/imagegen/deepseek-${emotion}.webp`, import.meta.url))
+    assert.ok(webpHasAlpha(bytes), `DeepSeek ${emotion} expression has no alpha channel`)
+  }
 })
 
 test('seven expanded locations and the Galgame title screen have bundled wide backgrounds', () => {

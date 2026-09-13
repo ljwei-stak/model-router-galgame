@@ -15,6 +15,14 @@ const storage = () => { try { return window.localStorage } catch { return null }
 const speakerName = key => key === 'player' ? '你' : key === 'narrator' ? '旁白' : STORY_CHARACTERS[key] || key
 const PREFERENCE_DEFAULTS = Object.freeze({ music: true, volume: .26, cueCaptions: true, reducedMotion: false, highContrast: false, largeText: false, readableFont: false })
 const preferenceKey = key => `${key}:accessibility:v1`
+function musicLevelFor(node, { home, hasChoices }) {
+  if (home) return .68
+  if (node.ending) return .58
+  if (node.soundCue) return .5
+  if (hasChoices) return .62
+  if (['angry', 'worried', 'surprised'].includes(node.emotion)) return .7
+  return .6
+}
 function readPreferences(key) {
   const systemReduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   try {
@@ -80,6 +88,7 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
   const hasInstitutionalEnding = Boolean(node.ending?.relationshipEpilogues?.length)
   const activeMusic = home ? 'title-city' : node.musicTheme || 'title-city'
   const currentTheme = STORY_MUSIC_THEMES[activeMusic]
+  const musicVolume = preferences.volume * musicLevelFor(node, { home, hasChoices })
   const hasProgress = Boolean(state.trail.length || state.routeId)
 
   function setPreference(name, value) {
@@ -99,14 +108,25 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
   }, [preferences, storageKey])
 
   useEffect(() => {
-    scoreRef.current?.stop()
-    scoreRef.current = null
-    if (!preferences.music || !audioUnlocked) return undefined
-    scoreRef.current = playStoryScore(activeMusic, { volume: preferences.volume })
-    return () => { scoreRef.current?.stop(); scoreRef.current = null }
-  }, [activeMusic, preferences.music, audioUnlocked])
+    const current = scoreRef.current
+    if (!preferences.music || !audioUnlocked) {
+      current?.stop({ fadeOutMs: 700 })
+      scoreRef.current = null
+      return
+    }
+    if (current?.themeId === activeMusic) {
+      current.setVolume(musicVolume, { rampMs: node.soundCue ? 720 : 360 })
+      return
+    }
+    const next = playStoryScore(activeMusic, { volume: musicVolume, fadeInMs: current ? 1400 : 900 })
+    scoreRef.current = next
+    current?.stop({ fadeOutMs: 1400 })
+  }, [activeMusic, musicVolume, preferences.music, audioUnlocked, node.soundCue])
 
-  useEffect(() => { scoreRef.current?.setVolume(preferences.volume) }, [preferences.volume])
+  useEffect(() => () => {
+    scoreRef.current?.stop({ fadeOutMs: 120 })
+    scoreRef.current = null
+  }, [])
 
   useEffect(() => {
     setShown(animate ? 0 : node.text.length)
@@ -256,7 +276,7 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
     unlockAudio()
   }
 
-  return <div className={`gg-root gg-story${preferences.highContrast ? ' is-high-contrast' : ''}${preferences.largeText ? ' is-large-text' : ''}${preferences.readableFont ? ' is-readable-font' : ''}${preferences.reducedMotion ? ' is-reduced-motion' : ''}`} data-testid="gal-story" data-node-id={node.id} data-episode-id={episodeId} data-chapter-id={node.chapterId || ''} data-route-id={node.routeId || ''} data-debug-enabled={debug}>
+  return <div className={`gg-root gg-story${preferences.highContrast ? ' is-high-contrast' : ''}${preferences.largeText ? ' is-large-text' : ''}${preferences.readableFont ? ' is-readable-font' : ''}${preferences.reducedMotion ? ' is-reduced-motion' : ''}`} data-testid="gal-story" data-node-id={node.id} data-episode-id={episodeId} data-chapter-id={node.chapterId || ''} data-route-id={node.routeId || ''} data-music-theme={activeMusic} data-debug-enabled={debug}>
     <style>{GAL_GAME_CSS}</style>
     {home && <section className="gg-title-screen" aria-labelledby="gg-title-heading" style={{ backgroundImage: `url(${STORY_BACKGROUNDS.title})` }}>
       <div className="gg-title-shade" />

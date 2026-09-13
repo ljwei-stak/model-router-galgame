@@ -4,6 +4,7 @@
  */
 import chatgpt from '../../aipicture/ChatGPT1.png'
 import claude from '../../aipicture/Claude1.png'
+import claudeSpecial from '../../aipicture/Claude.png'
 import harness from '../../aipicture/DeepSeek_Harness1.png'
 import deepseek from '../../aipicture/DeepSeek1.png'
 import doubao from '../../aipicture/Doubao1.png'
@@ -44,6 +45,10 @@ export const CHARACTER_IMAGES = Object.freeze({
   opencode,
   qwen,
   huggingface, llama, rwkv, perplexity, github, gitlab, gitee, cloudflare,
+})
+
+export const CHARACTER_VARIANTS = Object.freeze({
+  claude: Object.freeze({ default: claude, special: claudeSpecial }),
 })
 
 export function characterForModel(model, provider = '') {

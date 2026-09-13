@@ -293,10 +293,10 @@ const CHAPTER_MUSIC = Object.freeze({
   prologue: 'title-city',
   'open-day': 'commons-atelier',
   laurel: 'claude-poem',
-  'bridges-night': 'bridge-anomaly',
+  'bridges-night': 'kimi-flute',
   'three-harbors': 'harbor-shift',
   'open-dome-hearing': 'glass-dome',
-  'protocol-composition': 'bridge-anomaly',
+  'protocol-composition': 'glass-dome',
   'six-endings': 'title-city',
 })
 
@@ -317,16 +317,20 @@ function routeForNode(node) {
 export function storyPresentationFor(node) {
   const route = routeForNode(node)
   const backgroundId = route?.backgroundId || node.chapterId
-  const musicTheme = route?.musicTheme || CHAPTER_MUSIC[node.chapterId] || 'title-city'
+  const bridgeCrisis = node.chapterId === 'bridges-night' && /^(incident|cut|isolate|evidence|trace|report)-/.test(node.id)
+  const bridgeAftercare = node.chapterId === 'bridges-night' && /^after-/.test(node.id)
+  const compositionAudit = node.chapterId === 'protocol-composition' && /^composition-audit-/.test(node.id)
+  const musicTheme = route?.musicTheme
+    || (bridgeCrisis || compositionAudit ? 'bridge-anomaly' : bridgeAftercare ? 'claude-poem' : null)
+    || CHAPTER_MUSIC[node.chapterId]
+    || 'title-city'
   let soundCue = null
   const text = typeof node.text === 'string' ? node.text : ''
-  if (node.chapterId === 'bridges-night') {
-    soundCue = Object.freeze({ id: 'bridge-anomaly', label: '节奏异常', description: '节拍与回执时间没有对齐；这处不协和可能属于千桥事故证据链。' })
-  } else if (node.speaker === 'kimi' || /长笛|完整录音|缺拍/.test(text)) {
+  if (node.speaker === 'kimi' || /长笛|完整录音|缺拍/.test(text)) {
     soundCue = Object.freeze({ id: 'kimi-flute', label: '长笛线索', description: '同一段长笛再次出现；留意旋律中的停顿和它前后的语境。' })
   } else if (node.speaker === 'claude' && /桥|诗|下一行|署名|空白/.test(text)) {
     soundCue = Object.freeze({ id: 'claude-verse', label: '诗句线索', description: 'Claude 的未完成诗句再次出现；这次由她自己决定下一行是否存在。' })
-  } else if (/事故录音|第九秒|节拍|拍号冲突|时钟/.test(text)) {
+  } else if (bridgeCrisis || /事故录音|第九秒|节拍|拍号冲突|时钟/.test(text)) {
     soundCue = Object.freeze({ id: 'bridge-anomaly', label: '节奏异常', description: '节拍与回执时间没有对齐；这处不协和可能属于千桥事故证据链。' })
   }
   return Object.freeze({ backgroundId, musicTheme, soundCue })

@@ -6,7 +6,7 @@ import json
 import unittest
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "generate-gal-expressions.py"
@@ -214,6 +214,17 @@ class ImageValidationTests(unittest.TestCase):
 
 
 class ImagePreparationTests(unittest.TestCase):
+    def test_exterior_white_removal_preserves_enclosed_costume_white(self):
+        source = Image.new("RGBA", (40, 60), "white")
+        draw = ImageDraw.Draw(source)
+        draw.rectangle((8, 8, 31, 51), fill="black")
+        draw.rectangle((10, 10, 29, 49), fill="white")
+        cleaned, treatment = adapter.remove_exterior_white(source)
+        self.assertEqual(treatment, "exterior-white-keyed-with-edge-feather")
+        self.assertEqual(cleaned.getpixel((0, 0))[3], 0)
+        self.assertEqual(cleaned.getpixel((20, 30))[3], 255)
+        self.assertEqual(cleaned.getpixel((8, 8))[3], 255)
+
     def test_gateway_size_preserves_original_and_pads_target(self):
         payload = image_bytes(size=(940, 1672))
         target, original, metadata = adapter.prepare_image(payload)

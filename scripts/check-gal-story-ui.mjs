@@ -59,6 +59,11 @@ async function disableTyping(story) {
   await closePanel()
 }
 
+async function enterStory(story) {
+  const title = story.locator('.gg-title-screen')
+  if (await title.count()) await title.getByRole('button', { name: /继续旅程|从序章开始/ }).first().click()
+}
+
 async function advanceStoryUi(story) {
   await recordStoryNode(story)
   const previous = await story.getAttribute('data-node-id')
@@ -124,6 +129,7 @@ try {
   assert.equal(await page.getByRole('tab', { name: '剧情模式', exact: true }).getAttribute('aria-selected'), 'true')
   assert.equal(await page.getByTestId('gal-game').count(), 0)
   await assertStoryImmersive(story)
+  await enterStory(story)
   await disableTyping(story)
   const route = []
   for (let index = 0; index < 3; index++) route.push(await advanceStoryUi(story))
@@ -154,6 +160,7 @@ try {
   await page.reload()
   await story.waitFor()
   await assertStoryImmersive(story)
+  await enterStory(story)
   assert.equal(await story.getAttribute('data-node-id'), savedNode)
   assert.deepEqual(await storyState(), savedState, 'reload changed the story save')
   await disableTyping(story)
@@ -163,7 +170,7 @@ try {
   const gallery = page.locator('.gg-panel').filter({ has: page.getByRole('heading', { name: '对话框图鉴', exact: true }) })
   const frameButtons = gallery.locator('button[data-frame-character]')
   const frameCharacters = await frameButtons.evaluateAll(elements => elements.map(element => ({ key: element.dataset.frameCharacter, name: element.textContent.trim() })))
-  assert.equal(frameCharacters.length, 14, 'gallery should include all fourteen characters')
+  assert.equal(frameCharacters.length, 22, 'gallery should include all twenty-two characters')
   const frameChecks = []
   const portraits = new Set()
   const frameDesigns = new Set()
@@ -206,9 +213,9 @@ try {
       frameChecks.push({ key, design, viewport: viewport.width, ...pixels, raster, typography })
     }
   }
-  assert.equal(portraits.size, 14, 'gallery portraits did not switch independently')
-  assert.equal(frameDesigns.size, 14, 'gallery dialogue frame designs are not distinct')
-  assert.equal(frameImages.size, 14, 'gallery raster frames did not switch independently')
+  assert.equal(portraits.size, 22, 'gallery portraits did not switch independently')
+  assert.equal(frameDesigns.size, 22, 'gallery dialogue frame designs are not distinct')
+  assert.equal(frameImages.size, 22, 'gallery raster frames did not switch independently')
   await closePanel()
   assert.deepEqual(apiCalls, [], 'authored story or frame gallery made a model API request')
 
@@ -220,13 +227,14 @@ try {
   await page.getByTestId('gal-game').getByRole('button', { name: '模型与显示设置', exact: true }).click()
   await page.locator('.gg-panel').getByRole('button', { name: '对话框图鉴', exact: true }).click()
   await gallery.waitFor()
-  assert.equal(await gallery.locator('button[data-frame-character]').count(), 14)
+  assert.equal(await gallery.locator('button[data-frame-character]').count(), 22)
   await closePanel()
   await page.getByRole('tab', { name: '剧情模式', exact: true }).click()
   await story.waitFor()
   assert.deepEqual(await storyState(), storyBeforeSwitch, 'free mode changed the story save')
   assert.deepEqual(await page.evaluate(key => JSON.parse(localStorage.getItem(key)), freeKey), freeSentinel, 'story mode changed the free-mode save')
   await assertStoryImmersive(story)
+  await enterStory(story)
   await disableTyping(story)
 
   await page.setViewportSize({ width: 1440, height: 960 })
@@ -256,6 +264,7 @@ try {
       await story.waitFor()
       assert.deepEqual(await storyState(), lateSave, 'long story save changed after reload')
       await assertStoryImmersive(story)
+      await enterStory(story)
       await disableTyping(story)
     }
   }
@@ -279,6 +288,8 @@ try {
   await typographyWithin(story)
   await page.screenshot({ path: resolve(output, 'gal-story-ending-mobile.png'), fullPage: true })
   await page.reload()
+  await story.waitFor()
+  await enterStory(story)
   await story.locator('.gg-story-ending').waitFor()
   assert.equal(await story.getAttribute('data-node-id'), endingNode)
   assert.deepEqual(await storyState(), endingState, 'ending did not survive reload')

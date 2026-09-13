@@ -4,7 +4,7 @@
 
 适用于 DeepSeek Harness / DSH Desktop 的模型路由与 GAL 对话插件。它把任务分配、费用估算、模型角色对话、联网工具、PPT 生成技能和审批适配整合为一个 npm 插件包，需要在已有的 DSH 宿主中使用。
 
-**当前发布版本：0.4.30** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**当前发布版本：0.4.31** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## 功能介绍
 
@@ -31,12 +31,12 @@
 
 - **剧情模式**：无需在游玩时调用模型 API 的中文固定剧本。新篇《千桥协议》包含序章、百模协会开放日、月桂审议、千桥之夜、三港调查、开放与穹顶听证、协议组合、六种黎明八章主线，以及覆盖全部 22 位角色的独立支线。开源与闭源立场、ChatGPT 与 Claude 的旧事，以及 Agent / Skills / MCP 事故都会进入剧情选择。旧城迁移篇仍保留 1,111 个节点、28 处选择、5 个结局和 5 条后日谈。
 - **自由模式**：玩家自行打字，由 Harness 中配置的模型生成回应。互动会影响好感度与信任，既可增加也可降低，并影响关系发展后的回应。正常游玩隐藏关系数值、判定详情与推进条件，开发调试默认关闭。
-- **角色、表情与场景**：全部角色使用随包立绘与独立配色，并共享平静、微笑、羞涩、低落、生气、思索、担忧、坚定、惊讶和释然十态表情演出；DeepSeek 继续使用六套独立表情图。八章主线与七处支线地点共用 15 张宽屏背景，角色按视觉小说舞台比例站在对话框之后。
-- **音乐与声音线索**：七套可循环乐谱由 MiniMax M3 编曲并由浏览器本地合成。Kimi 的长笛缺拍、Claude 诗句的未完成终止式与千桥事故的第九拍错位贯穿主线和支线；声音线索均可同时显示文字字幕。
+- **角色、表情与场景**：全部角色使用随包立绘与独立配色，并共享十态表情演出；DeepSeek 的五张情绪差分使用透明 WebP，Claude 日常使用 `Claude1.png`，只在坚定、生气和惊讶场景切换 `Claude.png`。八章主线与七处支线地点共用 15 张宽屏背景，角色按视觉小说舞台比例站在对话框之后。
+- **音乐与声音线索**：七套可循环乐谱由 MiniMax M3 编曲并由浏览器本地合成。千桥签署先用 Kimi 长笛铺陈，事故显形才进入异常节拍，善后转入 Claude 诗句；主题切换交叉淡化，出现声音线索时自动压低背景音量。声音线索均可同时显示文字字幕。
 - **无障碍与操作**：首页提供继续、序章、角色支线、章节和无障碍入口。可设置音乐音量、声音字幕、减少动态、高对比度、大号文字和易读字体，并支持 Enter/Space、数字键、M、H、S、Esc 键盘操作与屏幕阅读器播报。
 - **游玩与存档**：从 Galgame 首页或剧情顶部的 **“剧目与章节”** 切换新旧剧目、八章主线和角色支线。新旧剧目各有独立自动存档和三个手动槽，支持自动播放、历史回看、JSON 导入/导出；旧篇和自由模式存档均可继续使用。
 
-角色动机与关系见 [《大模型娘人物设定集（剧情重构版）》](大模型娘人物设定.md)，完整规划见 [《千桥协议》剧情重构大纲](GAL_STORY_V2_OUTLINE.zh.md)。0.4.30 已完成首页、22 条角色支线、十态表情演出、MiniMax 主题乐谱、无障碍设置和七处新增背景。
+角色动机与关系见 [《大模型娘人物设定集（剧情重构版）》](大模型娘人物设定.md)，完整规划见 [《千桥协议》剧情重构大纲](GAL_STORY_V2_OUTLINE.zh.md)。0.4.31 为 22 位角色补齐独立对话框，并修正 DeepSeek 透明差分、Claude 立绘语义和主题配乐节奏。
 
 《千桥协议》含 666 个节点、44 处两难选择。状态由开放、安全、自主、证据与团结五条全局立场轴、33 项角色承诺和 42 项证据共同组成；存档读取时按选择轨迹重放。协议组合可到达六类制度结局，关系尾声与 44 种支线收束均独立计算。
 
@@ -55,11 +55,11 @@
 - **PPT Master** 以 DSH 原生 skill 随包加载。在普通工作会话中收到 PowerPoint/PPT/PPTX 需求后，模型可通过宿主 `skill` 工具加载 `ppt-master`，按规划、SVG 制作、检查和 PPTX 导出的流程执行。
 - Model Router 在选择模型和推进工作阶段时保留宿主技能目录、已加载的技能指令及文件/终端工具。制作 PPT 应使用普通聊天或 GAL 工作会话；剧情模式不调用工具，自由模式的角色对话也不是工作代理。
 - 包内包含技能、Python 脚本和模板。Python 依赖需按下方步骤主动安装，npm 安装不会自动安装 Python 或运行 pip。生成的演示文稿保存在会话可写工作目录中。
-- Router 0.4.30 随包加载 PPT Master 6.3.3，支持受管 Python 根目录，并避开 DSH Desktop 2.0.7 中有故障的 Windows Bash 运行器；同时保留 6.3.2 的 PPTX 临时目录权限修复。宿主沙箱和审批设置仍然生效。
+- Router 0.4.31 随包加载 PPT Master 6.3.3，支持受管 Python 根目录，并避开 DSH Desktop 2.0.7 中有故障的 Windows Bash 运行器；同时保留 6.3.2 的 PPTX 临时目录权限修复。宿主沙箱和审批设置仍然生效。
 
 ### Watcher 工作路径与模型用量
 
-Router 0.4.30 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)，并使用 DSH Desktop 2.0.7 SDK 构建和测试。
+Router 0.4.31 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)，并使用 DSH Desktop 2.0.7 SDK 构建和测试。
 在普通对话或 GAL 工作视图中，点击原生会话标题栏的眼睛按钮，可查看轮次、并行工具、
 重试、耗时和已记录的 token 用量。设置中的 Watcher 页面汇总本地会话用量；Router
 切换模型时按供应商和模型分别统计。推理记录只显示供应商已写入会话的内容。
@@ -78,7 +78,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 “GAL 视窗 → 项目更新”分别检查插件 npm 版本和官方 DSH Desktop 版本。支持“仅更新 npm 插件”“仅更新完整客户端”和“一键更新插件与客户端”。桌面端插件安装通过已认证的宿主连接执行，成功后需要完全退出并重启 DSH Desktop。
 
-普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.30` 与 DSH Desktop 的版本号相互独立。
+普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.31` 与 DSH Desktop 的版本号相互独立。
 
 ## 安装
 
@@ -100,7 +100,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.30
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
 ```
 
 3. 安装成功后，使用桌面端的重启入口，或从托盘明确退出后重新打开，仍选择刚才的 profile。仅关闭窗口可能只是隐藏应用。
@@ -115,7 +115,7 @@ dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/m
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.30
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
 dsh --profile web --dump-config
 ```
 
@@ -139,9 +139,9 @@ dsh --dump-config
 
 Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含以下七个插件，且没有重复 loader ID。配置导出不能替代实际启动验证；只需安装 Router 聚合包，依赖和 bundle 条目会自动加入。
 
-| 插件 | 0.4.30 固定依赖版本 | 用途 |
+| 插件 | 0.4.31 固定依赖版本 | 用途 |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.30` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
+| `@ljwei-stak/model-router-galgame` | `0.4.31` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
 | `@liustack/modlens` | `3.25.4` | 兼容路由的图片理解 |
 | `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
@@ -240,7 +240,7 @@ Web / CLI 使用 `dsh plugin --profile web remove @ljwei-stak/model-router-galga
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.30
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
 ```
 
 Web / CLI 在两条命令的 `plugin` 后加 `--profile web`。其他重复依赖按实际报错处理，不要一次删除全部插件。没有重复条目时不需要执行这些移除命令。

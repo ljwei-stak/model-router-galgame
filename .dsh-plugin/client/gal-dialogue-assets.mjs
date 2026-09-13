@@ -13,6 +13,14 @@ import mimo from '../../output/imagegen/dialogue-frames/mimo.webp'
 import minimax from '../../output/imagegen/dialogue-frames/minimax.webp'
 import opencode from '../../output/imagegen/dialogue-frames/opencode.webp'
 import qwen from '../../output/imagegen/dialogue-frames/qwen.webp'
+import huggingface from '../../output/imagegen/dialogue-frames/huggingface.webp'
+import llama from '../../output/imagegen/dialogue-frames/llama.webp'
+import rwkv from '../../output/imagegen/dialogue-frames/rwkv.webp'
+import perplexity from '../../output/imagegen/dialogue-frames/perplexity.webp'
+import github from '../../output/imagegen/dialogue-frames/github.webp'
+import gitlab from '../../output/imagegen/dialogue-frames/gitlab.webp'
+import gitee from '../../output/imagegen/dialogue-frames/gitee.webp'
+import cloudflare from '../../output/imagegen/dialogue-frames/cloudflare.webp'
 
 export const DIALOGUE_FRAME_ASSETS = Object.freeze({
   deepseek: { src: deepseek, "width": 1672, "height": 560, "textColor": "#d8e4ff", "nameColor": "#7650ad", "insets": {"top": 0.38746, "left": 0.17841, "right": 0.11234, "bottom": 0.32975}, "nameplate": {"left": 0.20044, "top": 0.18688, "width": 0.11894, "height": 0.09536}, "nameplateArt": {"left": 0.122608, "top": 0.121429, "width": 0.263158, "height": 0.228571} },
@@ -29,4 +37,12 @@ export const DIALOGUE_FRAME_ASSETS = Object.freeze({
   minimax: { src: minimax, "width": 1536, "height": 512, "textColor": "#f4f1fc", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.178, "top": 0.16, "width": 0.184, "height": 0.09}, "nameplateArt": {"left": 0.142578, "top": 0.091797, "width": 0.278646, "height": 0.201172} },
   opencode: { src: opencode, "width": 1536, "height": 512, "textColor": "#f4f1fc", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.181, "top": 0.205, "width": 0.192, "height": 0.082}, "nameplateArt": {"left": 0.150391, "top": 0.148438, "width": 0.275391, "height": 0.197266} },
   qwen: { src: qwen, "width": 1536, "height": 512, "textColor": "#f4f1fc", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.173, "top": 0.191, "width": 0.186, "height": 0.096}, "nameplateArt": {"left": 0.144531, "top": 0.130859, "width": 0.258464, "height": 0.197266} },
+  huggingface: { src: huggingface, "width": 2172, "height": 724, "textColor": "#f4f1fc", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
+  llama: { src: llama, "width": 2172, "height": 724, "textColor": "#433747", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
+  rwkv: { src: rwkv, "width": 2172, "height": 724, "textColor": "#f4f1fc", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
+  perplexity: { src: perplexity, "width": 2172, "height": 724, "textColor": "#d9f2f1", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
+  github: { src: github, "width": 2172, "height": 724, "textColor": "#f4f1fc", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
+  gitlab: { src: gitlab, "width": 2172, "height": 724, "textColor": "#f7e9df", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
+  gitee: { src: gitee, "width": 2172, "height": 724, "textColor": "#fff0f1", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
+  cloudflare: { src: cloudflare, "width": 2172, "height": 724, "textColor": "#493627", "nameColor": "#40364f", "insets": {"top": 0.35, "left": 0.18, "right": 0.15, "bottom": 0.22}, "nameplate": {"left": 0.175, "top": 0.16, "width": 0.195, "height": 0.105}, "nameplateArt": {"left": 0.14, "top": 0.1, "width": 0.29, "height": 0.23} },
 })

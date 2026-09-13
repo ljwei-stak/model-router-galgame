@@ -14,7 +14,12 @@
         35,
         1018,
         1817
-      ]
+      ],
+      "alpha": [
+        0,
+        255
+      ],
+      "background_treatment": "exterior-white-keyed-with-edge-feather"
     },
     {
       "expression": "happy",
@@ -25,6 +30,11 @@
         1018,
         1814
       ],
+      "alpha": [
+        0,
+        255
+      ],
+      "background_treatment": "exterior-white-keyed-with-edge-feather",
       "source_png": "output\\imagegen\\deepseek-happy-source.png",
       "source_size": [
         940,
@@ -32,7 +42,7 @@
       ],
       "webp": "output\\imagegen\\deepseek-happy.webp",
       "png_bytes": 2060386,
-      "webp_bytes": 204306
+      "webp_bytes": 218612
     },
     {
       "expression": "shy",
@@ -43,6 +53,11 @@
         1019,
         1817
       ],
+      "alpha": [
+        0,
+        255
+      ],
+      "background_treatment": "exterior-white-keyed-with-edge-feather",
       "source_png": "output\\imagegen\\deepseek-shy-source.png",
       "source_size": [
         941,
@@ -50,7 +65,7 @@
       ],
       "webp": "output\\imagegen\\deepseek-shy.webp",
       "png_bytes": 2162570,
-      "webp_bytes": 205600
+      "webp_bytes": 217910
     },
     {
       "expression": "sad",
@@ -61,6 +76,11 @@
         1015,
         1816
       ],
+      "alpha": [
+        0,
+        255
+      ],
+      "background_treatment": "exterior-white-keyed-with-edge-feather",
       "source_png": "output\\imagegen\\deepseek-sad-source.png",
       "source_size": [
         941,
@@ -68,7 +88,7 @@
       ],
       "webp": "output\\imagegen\\deepseek-sad.webp",
       "png_bytes": 2180350,
-      "webp_bytes": 201688
+      "webp_bytes": 217730
     },
     {
       "expression": "angry",
@@ -79,6 +99,11 @@
         1019,
         1817
       ],
+      "alpha": [
+        0,
+        255
+      ],
+      "background_treatment": "exterior-white-keyed-with-edge-feather",
       "source_png": "output\\imagegen\\deepseek-angry-source.png",
       "source_size": [
         864,
@@ -86,7 +111,7 @@
       ],
       "webp": "output\\imagegen\\deepseek-angry.webp",
       "png_bytes": 2159049,
-      "webp_bytes": 202554
+      "webp_bytes": 214118
     },
     {
       "expression": "thoughtful",
@@ -97,6 +122,11 @@
         1020,
         1820
       ],
+      "alpha": [
+        0,
+        255
+      ],
+      "background_treatment": "exterior-white-keyed-with-edge-feather",
       "source_png": "output\\imagegen\\deepseek-thoughtful-source.png",
       "source_size": [
         862,
@@ -104,7 +134,7 @@
       ],
       "webp": "output\\imagegen\\deepseek-thoughtful.webp",
       "png_bytes": 2112702,
-      "webp_bytes": 195764
+      "webp_bytes": 215920
     }
   ]
 }

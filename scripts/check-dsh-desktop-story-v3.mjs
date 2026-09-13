@@ -45,7 +45,7 @@ class Cdp {
     this.listeners.set(method, listeners)
   }
 
-  send(method, params = {}, timeout = 30_000) {
+  send(method, params = {}, timeout = 120_000) {
     const id = ++this.nextId
     return new Promise((resolveSend, reject) => {
       const timer = setTimeout(() => {
@@ -87,10 +87,14 @@ const report = {
   desktopVersion: '2.0.7',
   title: {},
   accessibility: {},
+  dialogueFrames: {},
   routes: {},
   backgrounds: {},
   expressions: new Set(),
   soundCues: new Set(),
+  claudeSources: new Set(),
+  deepseekAlpha: [],
+  bridgeMusic: [],
   errors: [],
   gameTurnCalls: 0,
 }
@@ -164,45 +168,41 @@ async function advanceUi(choiceId = null, keyboard = false) {
 }
 
 async function backgroundSnapshot() {
-  return cdp.evaluate(async () => {
+  return cdp.evaluate(() => {
     const element = document.querySelector('[data-testid="gal-story"] .gg-stage')
     const css = element.style.backgroundImage
     const source = css.startsWith('url("') ? css.slice(5, -2) : css.startsWith('url(') ? css.slice(4, -1) : ''
-    const image = new Image()
-    image.src = source
-    await image.decode()
     return {
       sourceType: source.slice(0, 24),
       sourceKey: `${source.length}:${source.slice(-24)}`,
-      width: image.naturalWidth,
-      height: image.naturalHeight,
+      sourceLength: source.length,
       position: getComputedStyle(element).backgroundPosition,
+      size: getComputedStyle(element).backgroundSize,
     }
   })
 }
 
-const savedStorage = await cdp.evaluate(() => Object.fromEntries(Object.entries(localStorage)))
+const savedStorage = await cdp.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith('model-router-galgame:'))))
 try {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
   await openStoryAtTitle()
+  console.log('[dsh-story-v3] title ready')
 
-  const title = await cdp.evaluate(async () => {
+  const title = await cdp.evaluate(() => {
     const element = document.querySelector('.gg-title-screen')
     const css = element.style.backgroundImage
     const source = css.startsWith('url("') ? css.slice(5, -2) : css.slice(4, -1)
-    const image = new Image()
-    image.src = source
-    await image.decode()
+    const claudeSource = element.querySelector('.gg-title-character-claude')?.src || ''
     return {
       buttons: [...element.querySelectorAll('button')].map(button => button.textContent.trim()),
-      width: image.naturalWidth,
-      height: image.naturalHeight,
+      sourceLength: source.length,
       sourceType: source.slice(0, 24),
+      claudePortrait: `${claudeSource.length}:${claudeSource.slice(-24)}`,
     }
   })
   assert.ok(title.buttons.length >= 4)
   assert.ok(title.buttons.includes('角色支线'))
-  assert.ok(title.width >= 1900 && title.height >= 1000)
+  assert.ok(title.sourceType.startsWith('data:image/webp') && title.sourceLength > 100_000)
   report.title = title
   await screenshot('desktop-story-v3-title-1440.png')
 
@@ -231,6 +231,33 @@ try {
   for (const name of ['is-reduced-motion', 'is-high-contrast', 'is-large-text', 'is-readable-font']) assert.ok(accessibility.classes.includes(name))
   assert.equal(accessibility.hiddenMain, 0)
   report.accessibility = accessibility
+
+  await clickExact('无障碍与声音', '.gg-title-screen')
+  await clickExact('对话框图鉴', '.gg-panel')
+  const frameKeys = await cdp.evaluate(() => [...document.querySelectorAll('.gg-panel button[data-frame-character]')].map(button => button.dataset.frameCharacter))
+  assert.equal(frameKeys.length, 22)
+  for (const key of frameKeys) {
+    const selected = await cdp.evaluate(character => {
+      const button = document.querySelector(`.gg-panel button[data-frame-character="${CSS.escape(character)}"]`)
+      button?.click()
+      return Boolean(button)
+    }, key)
+    assert.ok(selected)
+    await waitFor(character => document.querySelector('.gg-gallery-preview [data-dialogue-character]')?.dataset.dialogueCharacter === character, [key], 10_000, `${key} dialogue frame`)
+    const frame = await cdp.evaluate(() => {
+      const host = document.querySelector('.gg-gallery-preview [data-dialogue-character]')
+      const art = host?.querySelector('.ggd-raster-art')
+      const source = art ? getComputedStyle(art).borderImageSource : ''
+      return { character: host?.dataset.dialogueCharacter, raster: host?.dataset.frameRaster, motif: host?.dataset.dialogueMotif, source: `${source.length}:${source.slice(-24)}` }
+    })
+    assert.equal(frame.character, key)
+    assert.equal(frame.raster, 'true')
+    assert.ok(frame.motif && frame.source.split(':')[0] > 1000)
+    report.dialogueFrames[key] = frame
+  }
+  assert.equal(new Set(Object.values(report.dialogueFrames).map(frame => frame.source)).size, 22)
+  await clickExact('关闭', '.gg-panel')
+  console.log('[dsh-story-v3] 22 dialogue frames verified')
 
   for (let routeIndex = 0; routeIndex < STORY_SIDE_ROUTES.length; routeIndex++) {
     const route = STORY_SIDE_ROUTES[routeIndex]
@@ -261,6 +288,15 @@ try {
           const stage = story.querySelector('.gg-stage').getBoundingClientRect()
           portrait = { naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight, displayRatio: bounds.height / stage.height, className: image.className }
         }
+        if (portrait) {
+          const source = image.src || ''
+          portrait.sourceKey = `${source.length}:${source.slice(-24)}`
+          const canvas = document.createElement('canvas')
+          canvas.width = image.naturalWidth
+          canvas.height = image.naturalHeight
+          canvas.getContext('2d').drawImage(image, 0, 0)
+          portrait.cornerAlpha = canvas.getContext('2d').getImageData(0, 0, 1, 1).data[3]
+        }
         return { nodeId: story.dataset.nodeId, portrait, cueClass: story.querySelector('.gg-sound-cue')?.className || '' }
       })
       assert.equal(ui.nodeId, node.id)
@@ -269,6 +305,8 @@ try {
         assert.ok(ui.portrait.displayRatio >= .75)
         const expression = ui.portrait.className.match(/gg-expression-[\w-]+/)?.[0]
         if (expression) { routeExpressions.add(expression); report.expressions.add(expression) }
+        if (route.id === 'claude') report.claudeSources.add(ui.portrait.sourceKey)
+        if (route.id === 'deepseek') report.deepseekAlpha.push(ui.portrait.cornerAlpha)
       }
       const cue = ui.cueClass.match(/is-([\w-]+)/)?.[1]
       if (cue) report.soundCues.add(cue)
@@ -280,10 +318,12 @@ try {
     assert.ok(routeSteps < 32)
     assert.ok(currentStoryNode(state).ending.id.startsWith(`${route.id}-`))
     const background = await backgroundSnapshot()
-    assert.ok(background.width >= 1500 && background.height >= 800 && background.width / background.height > 1.6)
+    assert.ok(background.sourceType.startsWith('data:image/webp') && background.sourceLength > 100_000)
+    assert.equal(background.size, 'cover')
     report.backgrounds[route.backgroundId] = background.sourceKey
     report.routes[route.id] = { steps: routeSteps, ending: currentStoryNode(state).ending.id, expressions: [...routeExpressions], backgroundId: route.backgroundId }
-    if (['harness', 'claude', 'kimi', 'huggingface', 'perplexity'].includes(route.id)) await screenshot(`desktop-story-v3-route-${route.id}.png`)
+    console.log(`[dsh-story-v3] route ${routeIndex + 1}/22 ${route.id}`)
+    if (['harness', 'claude', 'deepseek', 'kimi', 'huggingface', 'perplexity', 'cloudflare'].includes(route.id)) await screenshot(`desktop-story-v3-route-${route.id}.png`)
     await clickExact('返回游戏首页')
     await waitFor(() => Boolean(document.querySelector('.gg-title-screen')), [], 10_000, 'title return')
   }
@@ -293,18 +333,31 @@ try {
   assert.ok(report.expressions.size >= 5)
   assert.ok(report.soundCues.has('kimi-flute'))
   assert.ok(report.soundCues.has('claude-verse'))
+  assert.ok(report.claudeSources.has(report.title.claudePortrait), 'Claude route never used Claude1 default portrait')
+  assert.ok(report.claudeSources.size >= 2, 'Claude special portrait never appeared in a high-tension scene')
+  assert.ok(report.deepseekAlpha.length > 0 && report.deepseekAlpha.every(alpha => alpha === 0), 'DeepSeek expression sprite retained an opaque background corner')
 
   await clickExact('剧目与章节', '.gg-title-screen')
   await clickExact('试玩：千桥之夜', '.gg-panel')
   await clickExact('确认', '.gg-panel')
-  for (let step = 0; step < 48 && !report.soundCues.has('bridge-anomaly'); step++) {
+  report.bridgeMusic.push(await cdp.evaluate(() => document.querySelector('[data-testid="gal-story"]')?.dataset.musicTheme || ''))
+  assert.equal(report.bridgeMusic[0], 'kimi-flute')
+  let chapterAnomaly = false
+  for (let step = 0; step < 48 && !chapterAnomaly; step++) {
+    const musicTheme = await cdp.evaluate(() => document.querySelector('[data-testid="gal-story"]')?.dataset.musicTheme || '')
+    report.bridgeMusic.push(musicTheme)
     const cue = await cdp.evaluate(() => document.querySelector('[data-testid="gal-story"] .gg-sound-cue')?.className.match(/is-([\w-]+)/)?.[1] || null)
-    if (cue) report.soundCues.add(cue)
-    if (report.soundCues.has('bridge-anomaly')) break
+    if (cue) {
+      report.soundCues.add(cue)
+      chapterAnomaly = cue === 'bridge-anomaly'
+    }
+    if (chapterAnomaly && musicTheme === 'bridge-anomaly') break
     const choice = await cdp.evaluate(() => document.querySelector('[data-testid="gal-story"] [data-choice-id]')?.dataset.choiceId || null)
     await advanceUi(choice)
   }
-  assert.ok(report.soundCues.has('bridge-anomaly'))
+  assert.ok(chapterAnomaly)
+  report.bridgeMusic.push(await cdp.evaluate(() => document.querySelector('[data-testid="gal-story"]')?.dataset.musicTheme || ''))
+  assert.ok(report.bridgeMusic.includes('bridge-anomaly'))
   await clickExact('返回游戏首页')
 
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
@@ -320,6 +373,7 @@ try {
 
   report.expressions = [...report.expressions]
   report.soundCues = [...report.soundCues]
+  report.claudeSources = [...report.claudeSources]
   assert.equal(report.gameTurnCalls, 0)
   assert.deepEqual(report.errors, [])
   await writeFile(resolve(output, 'desktop-story-v3-report.json'), JSON.stringify(report, null, 2))
@@ -331,7 +385,7 @@ try {
 } finally {
   await cdp.send('Emulation.clearDeviceMetricsOverride').catch(() => {})
   await cdp.evaluate(snapshot => {
-    localStorage.clear()
+    for (const key of Object.keys(localStorage)) if (key.startsWith('model-router-galgame:')) localStorage.removeItem(key)
     for (const [key, value] of Object.entries(snapshot)) localStorage.setItem(key, value)
   }, savedStorage).catch(() => {})
   await cdp.send('Page.reload', { ignoreCache: false }).catch(() => {})

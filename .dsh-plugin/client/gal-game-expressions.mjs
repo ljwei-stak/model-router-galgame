@@ -4,7 +4,7 @@ import shy from '../../output/imagegen/deepseek-shy.webp'
 import sad from '../../output/imagegen/deepseek-sad.webp'
 import angry from '../../output/imagegen/deepseek-angry.webp'
 import thoughtful from '../../output/imagegen/deepseek-thoughtful.webp'
-import { CHARACTER_IMAGES } from './characters.mjs'
+import { CHARACTER_IMAGES, CHARACTER_VARIANTS } from './characters.mjs'
 
 export const DEEPSEEK_EXPRESSIONS = Object.freeze({ neutral, happy, shy, sad, angry, thoughtful })
 export const STORY_EMOTIONS = Object.freeze(['neutral', 'happy', 'shy', 'sad', 'angry', 'thoughtful', 'worried', 'determined', 'surprised', 'calm'])
@@ -26,6 +26,9 @@ export function expressionFor(characterOrEmotion, requestedEmotion) {
   const character = legacyCall ? 'deepseek' : characterOrEmotion
   const emotion = normalizeEmotion(legacyCall ? characterOrEmotion : requestedEmotion)
   if (character === 'deepseek') return DEEPSEEK_EXPRESSIONS[emotion] || DEEPSEEK_EXPRESSIONS.neutral
+  if (character === 'claude') return ['determined', 'angry', 'surprised'].includes(emotion)
+    ? CHARACTER_VARIANTS.claude.special
+    : CHARACTER_VARIANTS.claude.default
   return CHARACTER_IMAGES[character] || CHARACTER_IMAGES.harness
 }
 

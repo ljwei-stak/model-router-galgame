@@ -30,14 +30,15 @@ function bell(context, destination, when, level) {
  * Play one of the MiniMax M3 composed score loops with the browser's Web Audio
  * oscillators. The returned controller never writes data or contacts a service.
  */
-export function playStoryScore(themeId, { volume = .28 } = {}) {
-  if (typeof window === 'undefined') return { stop() {}, setVolume() {} }
+export function playStoryScore(themeId, { volume = .28, fadeInMs = 0 } = {}) {
+  if (typeof window === 'undefined') return { themeId, stop() {}, setVolume() {} }
   const AudioContext = window.AudioContext || window.webkitAudioContext
-  if (!AudioContext) return { stop() {}, setVolume() {} }
+  if (!AudioContext) return { themeId, stop() {}, setVolume() {} }
   const score = storyScoreFor(themeId)
   const context = new AudioContext()
   const master = context.createGain()
-  master.gain.value = safeVolume(volume)
+  const targetVolume = safeVolume(volume)
+  master.gain.value = fadeInMs > 0 ? .0001 : targetVolume
   master.connect(context.destination)
   const beat = 60 / score.bpm
   const cycle = beat * 16
@@ -53,21 +54,28 @@ export function playStoryScore(themeId, { volume = .28 } = {}) {
     timer = window.setTimeout(() => schedule(start + cycle), Math.max(100, (cycle - 1.2) * 1000))
   }
 
-  context.resume().then(() => schedule(context.currentTime + .08)).catch(() => {})
+  context.resume().then(() => {
+    const now = context.currentTime
+    if (fadeInMs > 0) master.gain.linearRampToValueAtTime(Math.max(.0001, targetVolume), now + fadeInMs / 1000)
+    schedule(now + .08)
+  }).catch(() => {})
   return {
-    setVolume(next) {
+    themeId,
+    setVolume(next, { rampMs = 360 } = {}) {
       const now = context.currentTime
       master.gain.cancelScheduledValues(now)
-      master.gain.linearRampToValueAtTime(safeVolume(next), now + .12)
+      master.gain.setValueAtTime(Math.max(.0001, master.gain.value), now)
+      master.gain.linearRampToValueAtTime(Math.max(.0001, safeVolume(next)), now + Math.max(0, rampMs) / 1000)
     },
-    stop() {
+    stop({ fadeOutMs = 900 } = {}) {
       if (stopped) return
       stopped = true
       window.clearTimeout(timer)
       const now = context.currentTime
       master.gain.cancelScheduledValues(now)
-      master.gain.linearRampToValueAtTime(.0001, now + .16)
-      window.setTimeout(() => context.close().catch(() => {}), 220)
+      master.gain.setValueAtTime(Math.max(.0001, master.gain.value), now)
+      master.gain.linearRampToValueAtTime(.0001, now + Math.max(0, fadeOutMs) / 1000)
+      window.setTimeout(() => context.close().catch(() => {}), Math.max(120, fadeOutMs + 80))
     },
   }
 }

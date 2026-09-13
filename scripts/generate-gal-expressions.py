@@ -16,13 +16,61 @@ from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import uuid
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageStat
+from collections import deque
+
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
 
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPRESSIONS = ("happy", "shy", "sad", "angry", "thoughtful")
 MAX_IMAGE_BYTES = 50 * 1024 * 1024
 EXPECTED_SIZE = (1024, 1824)
+
+
+def remove_exterior_white(image: Image.Image) -> tuple[Image.Image, str]:
+    """Remove only near-white pixels connected to the canvas boundary."""
+    rgba = image.convert("RGBA")
+    width, height = rgba.size
+    pixels = rgba.load()
+    mask = Image.new("L", rgba.size)
+    marks = mask.load()
+    queue = deque()
+
+    def is_background(x: int, y: int) -> bool:
+        red, green, blue, alpha = pixels[x, y]
+        return alpha < 8 or (min(red, green, blue) >= 232 and max(red, green, blue) - min(red, green, blue) <= 18)
+
+    def enqueue(x: int, y: int) -> None:
+        if not marks[x, y] and is_background(x, y):
+            marks[x, y] = 255
+            queue.append((x, y))
+
+    for x in range(width):
+        enqueue(x, 0)
+        enqueue(x, height - 1)
+    for y in range(height):
+        enqueue(0, y)
+        enqueue(width - 1, y)
+    while queue:
+        x, y = queue.popleft()
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if 0 <= nx < width and 0 <= ny < height:
+                enqueue(nx, ny)
+
+    if not mask.getbbox():
+        return rgba, "native-alpha-preserved"
+    edge = mask.filter(ImageFilter.MaxFilter(5)).load()
+    for y in range(height):
+        for x in range(width):
+            if marks[x, y]:
+                pixels[x, y] = (0, 0, 0, 0)
+            elif edge[x, y]:
+                red, green, blue, alpha = pixels[x, y]
+                whiteness = min(red, green, blue) / 255
+                if whiteness > .72 and max(red, green, blue) - min(red, green, blue) < 32:
+                    coverage = max(0.0, min(1.0, 1 - (whiteness - .72) / .28))
+                    pixels[x, y] = (red, green, blue, round(alpha * coverage))
+    return rgba, "exterior-white-keyed-with-edge-feather"
 
 
 def validate_https_url(value: str) -> str:
@@ -172,37 +220,40 @@ def prepare_web_assets() -> int:
     manifest = {"target_size": list(EXPECTED_SIZE), "webp_quality": 90, "webp_method": 6, "images": []}
     for index, path in enumerate(paths):
         with Image.open(path) as image:
-            rgba = image.convert("RGBA")
+            rgba, treatment = remove_exterior_white(image)
             fitted = ImageOps.contain(rgba, EXPECTED_SIZE, Image.Resampling.LANCZOS)
-            frame = Image.new("RGBA", EXPECTED_SIZE, "white")
+            frame = Image.new("RGBA", EXPECTED_SIZE, (0, 0, 0, 0))
             frame.alpha_composite(fitted, ((EXPECTED_SIZE[0] - fitted.width) // 2, (EXPECTED_SIZE[1] - fitted.height) // 2))
-            rgb = frame.convert("RGB")
+            preview = Image.new("RGBA", EXPECTED_SIZE, "white")
+            preview.alpha_composite(frame)
+            rgb = preview.convert("RGB")
         crop = rgb.crop((320, 140, 710, 530)).resize((300, 300), Image.Resampling.LANCZOS)
         left = 5 + index * 310
         sheet.paste(crop, (left, 48))
         draw.text((left + 150, 10), labels[index], font=font, fill="#23272c", anchor="mt")
         dark_pixels = rgb.convert("L").point(lambda value: 255 if value < 180 else 0)
         entry = {"expression": "original" if index == 0 else EXPRESSIONS[index - 1],
-                 "png": str(path.relative_to(ROOT)), "normalized_content_bounds": list(dark_pixels.getbbox())}
+                 "png": str(path.relative_to(ROOT)), "normalized_content_bounds": list(dark_pixels.getbbox()),
+                 "alpha": list(frame.getchannel("A").getextrema()), "background_treatment": treatment}
         if index:
             source_path = output_dir / f"deepseek-{EXPRESSIONS[index - 1]}-source.png"
             with Image.open(source_path) as source:
                 entry.update({"source_png": str(source_path.relative_to(ROOT)), "source_size": list(source.size)})
             webp = output_dir / f"deepseek-{EXPRESSIONS[index - 1]}.webp"
-            rgb.save(webp, format="WEBP", quality=90, method=6)
+            frame.save(webp, format="WEBP", quality=90, method=6, exact=True, alpha_quality=100)
             entry.update({"webp": str(webp.relative_to(ROOT)), "png_bytes": path.stat().st_size, "webp_bytes": webp.stat().st_size})
         manifest["images"].append(entry)
     draw.text((930, 370), "高质量图像编辑 / 同一角色 / 原姿势保留，局部细节可能轻微重绘", font=caption_font, fill="#535b63", anchor="mt")
     sheet.save(output_dir / "expression-contact-sheet.png")
     write_json(output_dir / "asset-manifest.json", manifest)
-    print(f"Prepared five RGB WebP assets and {output_dir / 'expression-contact-sheet.png'}.")
+    print(f"Prepared five transparent WebP assets and {output_dir / 'expression-contact-sheet.png'}.")
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--expression", choices=EXPRESSIONS)
-    parser.add_argument("--prepare-assets", action="store_true", help="Export RGB WebP assets and the expression contact sheet without network calls.")
+    parser.add_argument("--prepare-assets", action="store_true", help="Export transparent WebP assets and the expression contact sheet without network calls.")
     parser.add_argument("--response-format", choices=("b64_json", "url"), default=None)
     parser.add_argument("--recover-result", help="Resume a response already saved in this project's private image directory; sends no edit request.")
     parser.add_argument("--dry-run", action="store_true")

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { GalDialogue } from './GalDialogue.jsx'
-import { DIALOGUE_THEMES } from './gal-dialogue-themes.mjs'
+import { STORY_DIALOGUE_THEMES } from './gal-dialogue-themes.mjs'
 import { CHARACTER_IMAGES } from './characters.mjs'
 import { Panel } from './gal-game-controls.jsx'
 
@@ -19,14 +19,22 @@ const lines = {
   minimax: '这一幕不用排练。等你真的想开口，我再把灯光转向你。',
   opencode: '我检查过门锁和电源了。你们放心去吧，最后一遍我来确认。',
   qwen: '不同语言里的再见，未必都是离别。有时也是约好下一次相见。',
+  huggingface: '协会的大门今天照常开放。模型、数据集和工具都要有来处，也要有人接住修订。',
+  llama: '把火种带回离线夜校吧。它不快，但学生不该因为断网从地图上消失。',
+  rwkv: '我走小机器能走的桥。连续记忆不必靠一座更大的炉心证明自己。',
+  perplexity: '我会把答案、来源与不确定项放在同一页，让后来的人能沿原路复核。',
+  github: '勘误会保留原提交。公开修复的意义，是让责任和改正都能被看见。',
+  gitlab: '流水线已经复现。绿色只代表写进测试的部分通过，不替遗漏的边界作证。',
+  gitee: '镜像晚到七分钟。中心看见的是延迟，夜校失去的是一整堂课。',
+  cloudflare: '这张通行令缺少到期时间。门会等范围、签名与申诉入口都写清楚再开。',
 }
 
 export function GalDialogueGallery({ onClose, scene, assetsMap }) {
   const [character, setCharacter] = useState('deepseek')
   return <Panel title="对话框图鉴" wide onClose={onClose}>
     <div className="gg-gallery-roster" role="group" aria-label="模型娘">
-      {Object.entries(DIALOGUE_THEMES).map(([key, theme]) => <button type="button" key={key} data-frame-character={key} aria-pressed={character === key} onClick={() => setCharacter(key)}><img src={CHARACTER_IMAGES[key]} alt="" />{theme.name}</button>)}
+      {Object.entries(STORY_DIALOGUE_THEMES).map(([key, theme]) => <button type="button" key={key} data-frame-character={key} aria-pressed={character === key} onClick={() => setCharacter(key)}><img src={CHARACTER_IMAGES[key]} alt="" />{theme.name}</button>)}
     </div>
-    <div className="gg-gallery-preview"><img className="gg-gallery-portrait" src={CHARACTER_IMAGES[character]} alt={DIALOGUE_THEMES[character].name} /><GalDialogue character={character} text={lines[character]} scene={scene} assetsMap={assetsMap} /></div>
+    <div className="gg-gallery-preview"><img className="gg-gallery-portrait" src={CHARACTER_IMAGES[character]} alt={STORY_DIALOGUE_THEMES[character].name} /><GalDialogue character={character} text={lines[character]} scene={scene} assetsMap={assetsMap} /></div>
   </Panel>
 }
