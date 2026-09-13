@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, BookOpen, Bug, Check, Download, History, MapPin, Palette, Pause, Play, RotateCcw, Save, Settings2, Upload, X } from 'lucide-react'
-import { STORY_EPISODES, STORY_CHARACTERS, getStoryEpisode, createStory, normalizeStory, currentStoryNode, advanceStory, storyHistory } from '../shared/gal-story-catalog.mjs'
+import { Accessibility, ArrowRight, BookOpen, Bug, Check, Download, History, House, MapPin, Music2, Palette, Pause, Play, RotateCcw, Save, Settings2, Upload, Volume2, VolumeX, X } from 'lucide-react'
+import { STORY_EPISODES, STORY_CHARACTERS, STORY_SIDE_ROUTES, STORY_MUSIC_THEMES, getStoryEpisode, createStory, normalizeStory, currentStoryNode, advanceStory, storyHistory } from '../shared/gal-story-catalog.mjs'
 import { readStory, readStorySlots, writeStory, STORY_STORAGE_KEY, episodeStorageKey, selectedStoryEpisode } from './gal-story-storage.mjs'
 import { CHARACTER_IMAGES } from './characters.mjs'
 import { STORY_BACKGROUNDS } from './gal-story-backgrounds.mjs'
-import { expressionFor } from './gal-game-expressions.mjs'
+import { expressionClassFor, expressionFor, expressionLabelFor } from './gal-game-expressions.mjs'
+import { playStoryScore } from './gal-story-audio.mjs'
 import { GalDialogue } from './GalDialogue.jsx'
 import { GalDialogueGallery } from './GalDialogueGallery.jsx'
 import { Panel, Tool } from './gal-game-controls.jsx'
@@ -12,6 +13,15 @@ import { GAL_GAME_CSS } from './gal-game-styles.mjs'
 
 const storage = () => { try { return window.localStorage } catch { return null } }
 const speakerName = key => key === 'player' ? '你' : key === 'narrator' ? '旁白' : STORY_CHARACTERS[key] || key
+const PREFERENCE_DEFAULTS = Object.freeze({ music: true, volume: .26, cueCaptions: true, reducedMotion: false, highContrast: false, largeText: false, readableFont: false })
+const preferenceKey = key => `${key}:accessibility:v1`
+function readPreferences(key) {
+  const systemReduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+  try {
+    const raw = JSON.parse(storage()?.getItem(preferenceKey(key)) || '{}')
+    return { ...PREFERENCE_DEFAULTS, ...raw, reducedMotion: raw.reducedMotion ?? systemReduced, volume: Math.max(0, Math.min(1, Number(raw.volume ?? PREFERENCE_DEFAULTS.volume))) }
+  } catch { return { ...PREFERENCE_DEFAULTS, reducedMotion: systemReduced } }
+}
 
 export function GalStoryView({ storageKey = STORY_STORAGE_KEY, scene: dialogueScene, assetsMap, sessionState, onStateChange }) {
   const [episodeId, setEpisodeId] = useState(() => {
@@ -48,26 +58,55 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
   const [confirm, setConfirm] = useState(null)
   const [slots, setSlots] = useState([null, null, null])
   const [debug, setDebug] = useState(false)
-  const [animate, setAnimate] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+  const [preferences, setPreferences] = useState(() => readPreferences(storageKey))
+  const [animate, setAnimate] = useState(() => !readPreferences(storageKey).reducedMotion)
   const [speed, setSpeed] = useState(28)
   const [shown, setShown] = useState(0)
   const [auto, setAuto] = useState(false)
+  const [home, setHome] = useState(true)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
   const fileRef = useRef(null)
   const historyRef = useRef(null)
   const dialogueRef = useRef(null)
+  const scoreRef = useRef(null)
   const node = useMemo(() => currentStoryNode(state), [state])
   const history = useMemo(() => storyHistory(state), [state])
   const portraitLine = [...history].reverse().find(line => line.location === node.location && CHARACTER_IMAGES[line.speaker])
   const character = CHARACTER_IMAGES[node.speaker] ? node.speaker : portraitLine?.speaker
-  const background = STORY_BACKGROUNDS[node.chapterId]
+  const background = STORY_BACKGROUNDS[node.backgroundId || node.chapterId]
+  const emotion = node.speaker === character ? node.emotion || 'neutral' : 'neutral'
   const complete = !animate || shown >= node.text.length
   const hasChoices = Boolean(node.choices?.length)
   const hasInstitutionalEnding = Boolean(node.ending?.relationshipEpilogues?.length)
+  const activeMusic = home ? 'title-city' : node.musicTheme || 'title-city'
+  const currentTheme = STORY_MUSIC_THEMES[activeMusic]
+  const hasProgress = Boolean(state.trail.length || state.routeId)
+
+  function setPreference(name, value) {
+    setPreferences(current => ({ ...current, [name]: value }))
+    if (name === 'reducedMotion' && value) setAnimate(false)
+  }
+
+  function unlockAudio() { setAudioUnlocked(true) }
 
   useEffect(() => {
     try { setSlots(readStorySlots(storage(), storageKey, episodeId)) }
     catch (slotError) { setError(slotError.message) }
   }, [storageKey])
+
+  useEffect(() => {
+    try { storage()?.setItem(preferenceKey(storageKey), JSON.stringify(preferences)) } catch { /* Accessibility choices remain active for this session. */ }
+  }, [preferences, storageKey])
+
+  useEffect(() => {
+    scoreRef.current?.stop()
+    scoreRef.current = null
+    if (!preferences.music || !audioUnlocked) return undefined
+    scoreRef.current = playStoryScore(activeMusic, { volume: preferences.volume })
+    return () => { scoreRef.current?.stop(); scoreRef.current = null }
+  }, [activeMusic, preferences.music, audioUnlocked])
+
+  useEffect(() => { scoreRef.current?.setVolume(preferences.volume) }, [preferences.volume])
 
   useEffect(() => {
     setShown(animate ? 0 : node.text.length)
@@ -102,6 +141,28 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
     document.addEventListener('visibilitychange', pause)
     return () => document.removeEventListener('visibilitychange', pause)
   }, [])
+
+  useEffect(() => {
+    const keydown = event => {
+      if (home || panel || confirm || error || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(event.target?.tagName)) return
+      if (/^[1-9]$/.test(event.key) && hasChoices) {
+        const choice = node.choices[Number(event.key) - 1]
+        if (choice) { event.preventDefault(); progress(choice.id) }
+      } else if ((event.key === 'Enter' || event.key === ' ') && !node.ending) {
+        event.preventDefault(); dialogueRef.current?.advance()
+      } else if (event.key.toLowerCase() === 'm') {
+        event.preventDefault(); unlockAudio(); setPreference('music', !preferences.music)
+      } else if (event.key.toLowerCase() === 'h') {
+        event.preventDefault(); setAuto(false); setPanel('history')
+      } else if (event.key.toLowerCase() === 's') {
+        event.preventDefault(); setAuto(false); setPanel('saves')
+      } else if (event.key === 'Escape') {
+        event.preventDefault(); setAuto(false); setHome(true)
+      }
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [home, panel, confirm, error, hasChoices, node.id, preferences.music])
 
   function store(next, recover = false) {
     if (protectedSave.current && !recover) { setAuto(false); setError('原存档已保留，请先导入备份或在设置中重新开始。'); return false }
@@ -167,20 +228,61 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
 
   function restart() {
     setAuto(false)
-    setConfirm({ title: '重新开始剧情？', detail: '当前剧目的自动存档将被替换，手动存档会保留。', action: () => { store(createStory(episodeId), true); setPanel(null); setNotice('新故事已经开始') } })
+    setConfirm({ title: '重新开始剧情？', detail: '当前剧目的自动存档将被替换，手动存档会保留。', action: () => { store(createStory(episodeId), true); setPanel(null); setHome(false); unlockAudio(); setNotice('新故事已经开始') } })
   }
 
   function startChapter(chapter) {
     setAuto(false)
-    setConfirm({ title: `从《${chapter.title}》开始试玩？`, detail: '本剧目的自动存档将被替换，手动存档保留。章节独立起点不继承之前的选择；完整体验请从序章开始。', action: () => { store(createStory(episodeId, { chapterId: chapter.id }), true); setPanel(null); setNotice('章节试玩已经开始') } })
+    setConfirm({ title: `从《${chapter.title}》开始试玩？`, detail: '本剧目的自动存档将被替换，手动存档保留。章节独立起点不继承之前的选择；完整体验请从序章开始。', action: () => { store(createStory(episodeId, { chapterId: chapter.id }), true); setPanel(null); setHome(false); unlockAudio(); setNotice('章节试玩已经开始') } })
   }
 
-  return <div className="gg-root gg-story" data-testid="gal-story" data-node-id={node.id} data-episode-id={episodeId} data-chapter-id={node.chapterId || ''} data-debug-enabled={debug}>
+  function startRoute(route) {
+    setAuto(false)
+    store(createStory(episodeId, { routeId: route.id }), true)
+    setPanel(null)
+    setHome(false)
+    unlockAudio()
+    setNotice(`已进入 ${speakerName(route.character)} 支线`)
+  }
+
+  function startFromTitle() {
+    store(createStory(episodeId), true)
+    setHome(false)
+    unlockAudio()
+  }
+
+  function continueFromTitle() {
+    setHome(false)
+    unlockAudio()
+  }
+
+  return <div className={`gg-root gg-story${preferences.highContrast ? ' is-high-contrast' : ''}${preferences.largeText ? ' is-large-text' : ''}${preferences.readableFont ? ' is-readable-font' : ''}${preferences.reducedMotion ? ' is-reduced-motion' : ''}`} data-testid="gal-story" data-node-id={node.id} data-episode-id={episodeId} data-chapter-id={node.chapterId || ''} data-route-id={node.routeId || ''} data-debug-enabled={debug}>
     <style>{GAL_GAME_CSS}</style>
-    <header className="gg-header">
+    {home && <section className="gg-title-screen" aria-labelledby="gg-title-heading" style={{ backgroundImage: `url(${STORY_BACKGROUNDS.title})` }}>
+      <div className="gg-title-shade" />
+      <img className="gg-title-character gg-title-character-kimi" src={CHARACTER_IMAGES.kimi} alt="" aria-hidden="true" />
+      <img className="gg-title-character gg-title-character-claude" src={CHARACTER_IMAGES.claude} alt="" aria-hidden="true" />
+      <div className="gg-title-copy">
+        <p className="gg-title-kicker">MODEL CITY VISUAL NOVEL</p>
+        <h1 id="gg-title-heading">未写完的约定</h1>
+        <p className="gg-title-subtitle">千桥协议</p>
+        <p className="gg-title-description">八章主线 · 六种黎明 · 二十二条角色支线</p>
+        <div className="gg-title-actions">
+          {hasProgress && <button type="button" className="gg-title-primary" onClick={continueFromTitle}><Play size={17} />继续旅程</button>}
+          <button type="button" className={hasProgress ? '' : 'gg-title-primary'} onClick={startFromTitle}><RotateCcw size={17} />从序章开始</button>
+          {episodeId === 'bridges' && <button type="button" onClick={() => { unlockAudio(); setPanel('routes') }}><BookOpen size={17} />角色支线</button>}
+          <button type="button" onClick={() => { unlockAudio(); setPanel('episodes') }}><MapPin size={17} />剧目与章节</button>
+          <button type="button" onClick={() => { unlockAudio(); setPanel('settings') }}><Accessibility size={17} />无障碍与声音</button>
+        </div>
+        <p className="gg-title-audio"><Music2 size={14} />{audioUnlocked && preferences.music ? `正在演奏：${currentTheme?.title || '千桥城序曲'}` : '选择任一入口后启用音乐'}</p>
+      </div>
+    </section>}
+    {!home && <><header className="gg-header">
       <div className="gg-brand"><h1>{episode.title}</h1></div>
       <div className="gg-header-actions">
+        <Tool label="返回游戏首页" icon={House} onClick={() => { setAuto(false); setHome(true) }} />
         <Tool label="剧目与章节" icon={BookOpen} onClick={() => { setAuto(false); setPanel('episodes') }} />
+        <Tool label={preferences.music ? '关闭音乐' : '开启音乐'} icon={preferences.music ? Volume2 : VolumeX} aria-pressed={preferences.music} onClick={() => { unlockAudio(); setPreference('music', !preferences.music) }} />
         <Tool label={auto ? '暂停自动播放' : '自动播放'} icon={auto ? Pause : Play} aria-pressed={auto} disabled={Boolean(node.ending)} onClick={() => setAuto(value => !value)} />
         <Tool label="对话回顾" icon={History} onClick={() => setPanel('history')} />
         <Tool label="存档与读档" icon={Save} onClick={() => setPanel('saves')} />
@@ -191,23 +293,34 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
     <main className={`gg-main${hasChoices ? ' has-choices' : ''}${hasInstitutionalEnding ? ' is-institutional-ending' : ''}`}>
       <section className={`gg-stage${background ? ' has-background' : ''}`} aria-label={`${node.location}。${node.description}`} style={background ? { backgroundImage: `url(${background})` } : undefined}>
         <div className="gg-scene-meta"><span><MapPin size={13} />{node.location}</span><time>{node.time}</time></div>
+        {preferences.cueCaptions && node.soundCue && <div className={`gg-sound-cue is-${node.soundCue.id}`} role="status"><Music2 size={14} aria-hidden="true" /><span><strong>{node.soundCue.label}</strong>{node.soundCue.description}</span></div>}
         {!background && <div className="gg-scene-placeholder"><h2>{node.location}</h2><span className="gg-placeholder-rule" /><p>{node.description}</p></div>}
-        {character && <img className="gg-character" key={character} src={character === 'deepseek' ? expressionFor(node.speaker === character ? node.emotion || 'neutral' : 'neutral') : CHARACTER_IMAGES[character]} alt={speakerName(character)} draggable="false" />}
+        {character && <><img className={`gg-character ${expressionClassFor(emotion)}`} key={`${character}:${emotion}`} src={expressionFor(character, emotion)} alt={`${speakerName(character)}，表情：${expressionLabelFor(emotion)}`} draggable="false" /><span className={`gg-expression-badge ${expressionClassFor(emotion)}`} aria-hidden="true">{expressionLabelFor(emotion)}</span></>}
       </section>
+      <p className="gg-sr-only" aria-live="polite">{speakerName(node.speaker)}：{node.text}</p>
       <GalDialogue ref={dialogueRef} character={node.speaker} speaker={speakerName(node.speaker)} text={node.text} shown={animate ? node.text.slice(0, shown) : node.text} onAdvance={() => progress()} canAdvance={!hasChoices && !node.ending} scene={dialogueScene} assetsMap={assetsMap} />
       <div className={`gg-input-band gg-story-actions${hasInstitutionalEnding ? ' is-institutional-ending' : ''}`}>
         {error && <div className="gg-error" role="alert"><span>{error}</span><Tool label="关闭提示" icon={X} onClick={() => setError('')} /></div>}
         {node.ending ? <div className="gg-ending gg-story-ending"><div className="gg-ending-copy">{hasInstitutionalEnding && <span className="gg-ending-kicker">制度结局</span>}<h2>{node.ending.title}</h2><p>{node.ending.description}</p>{hasInstitutionalEnding && <section className="gg-relationship-epilogues"><h3>关系尾声</h3><div>{node.ending.relationshipEpilogues.map(item => <article key={item.id}><h4>{item.title}</h4><p>{item.description}</p></article>)}</div></section>}</div><Tool label="重新开始" icon={RotateCcw} onClick={restart} /></div> : hasChoices ? <div className="gg-story-choices" role="group" aria-label="你的选择">{node.choices.map(choice => <button type="button" key={choice.id} data-choice-id={choice.id} onClick={() => progress(choice.id)}>{choice.text}<ArrowRight size={16} /></button>)}</div> : <div className="gg-story-next"><button type="button" className="gg-next" onClick={() => dialogueRef.current?.advance()}>继续<ArrowRight size={16} /></button></div>}
       </div>
-    </main>
+    </main></>}
     {notice && <div className="gg-notice" role="status"><Check size={15} />{notice}</div>}
+
+    {panel === 'routes' && episodeId === 'bridges' && <Panel title="二十二条角色支线" wide onClose={() => setPanel(null)}>
+      <p className="gg-route-intro">每条支线从独立状态开始，保留一项角色承诺和一份可核验证据。结局不会覆盖主线的制度结局。</p>
+      <div className="gg-route-grid">{STORY_SIDE_ROUTES.map(route => <button type="button" className="gg-route-card" data-route-id={route.id} key={route.id} onClick={() => startRoute(route)}>
+        <img src={CHARACTER_IMAGES[route.character]} alt="" aria-hidden="true" />
+        <span><strong>{speakerName(route.character)} · {route.title}</strong><small>{route.subtitle}</small><em>{route.summary}</em></span><ArrowRight size={16} />
+      </button>)}</div>
+    </Panel>}
 
     {panel === 'episodes' && <Panel title="剧目与章节" onClose={() => setPanel(null)}>
       <div className="gg-episode-list">{STORY_EPISODES.map(item => <article className="gg-episode-card" key={item.id}>
         <h3>{item.label}{item.id === episodeId ? ' · 当前剧目' : ''}</h3><p>{item.description}</p>
         <button className="gg-button" type="button" onClick={() => { if (item.id === episodeId) setPanel(null); else onChooseEpisode(item.id) }}>继续{item.label}</button>
       </article>)}</div>
-      {episode.chapters.length > 0 && <div className="gg-chapter-list"><h3>章节试玩</h3><p>从序章顺序阅读可保留所有选择的后续影响。也可直接从以下章节开始。</p>{episode.chapters.map(chapter => <button className="gg-button" type="button" key={chapter.id} onClick={() => startChapter(chapter)}>试玩：{chapter.title}<ArrowRight size={14} /></button>)}</div>}
+      {episode.chapters.length > 0 && <div className="gg-chapter-list"><h3>八章主线试玩</h3><p>从序章顺序阅读可保留所有选择的后续影响。也可直接从以下主线章节开始。</p>{episode.chapters.filter(chapter => !chapter.optional).map(chapter => <button className="gg-button" type="button" key={chapter.id} onClick={() => startChapter(chapter)}>试玩：{chapter.title}<ArrowRight size={14} /></button>)}</div>}
+      {episodeId === 'bridges' && <div className="gg-panel-actions"><button className="gg-button" type="button" onClick={() => setPanel('routes')}><BookOpen size={16} />打开角色支线</button></div>}
     </Panel>}
 
     {panel === 'history' && <Panel title="对话回顾" wide onClose={() => setPanel(null)}><div className="gg-history">{history.map((line, index) => <React.Fragment key={`${line.id}:${index}`}>{line.location !== history[index - 1]?.location && <div className="gg-history-scene">{line.location} · {line.time}</div>}<article className={`gg-history-line ${line.speaker === 'player' ? 'is-player' : ''}`}><span>{speakerName(line.speaker)}</span><p>{line.text}</p></article></React.Fragment>)}<div ref={historyRef} /></div></Panel>}
@@ -221,6 +334,16 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
     {panel === 'settings' && <Panel title="剧情与显示设置" onClose={() => setPanel(null)}>
       <label className="gg-setting-row"><span>逐字显示</span><input type="checkbox" checked={animate} onChange={event => setAnimate(event.target.checked)} /></label>
       <label className="gg-setting-row"><span>文字速度</span><input aria-label="文字速度" type="range" min="10" max="60" step="5" value={70 - speed} disabled={!animate} onChange={event => setSpeed(70 - Number(event.target.value))} /></label>
+      <h3 className="gg-settings-heading">声音</h3>
+      <label className="gg-setting-row"><span>背景音乐</span><input type="checkbox" checked={preferences.music} onChange={event => { unlockAudio(); setPreference('music', event.target.checked) }} /></label>
+      <label className="gg-setting-row"><span>音乐音量</span><input aria-label="音乐音量" type="range" min="0" max="100" step="5" value={Math.round(preferences.volume * 100)} disabled={!preferences.music} onChange={event => setPreference('volume', Number(event.target.value) / 100)} /></label>
+      <label className="gg-setting-row"><span>显示声音线索字幕</span><input type="checkbox" checked={preferences.cueCaptions} onChange={event => setPreference('cueCaptions', event.target.checked)} /></label>
+      <h3 className="gg-settings-heading">无障碍</h3>
+      <label className="gg-setting-row"><span>减少动态与关闭逐字动画</span><input type="checkbox" checked={preferences.reducedMotion} onChange={event => setPreference('reducedMotion', event.target.checked)} /></label>
+      <label className="gg-setting-row"><span>高对比度</span><input type="checkbox" checked={preferences.highContrast} onChange={event => setPreference('highContrast', event.target.checked)} /></label>
+      <label className="gg-setting-row"><span>大号文字</span><input type="checkbox" checked={preferences.largeText} onChange={event => setPreference('largeText', event.target.checked)} /></label>
+      <label className="gg-setting-row"><span>易读字体与加宽字距</span><input type="checkbox" checked={preferences.readableFont} onChange={event => setPreference('readableFont', event.target.checked)} /></label>
+      <div className="gg-keyboard-help"><h3>键盘操作</h3><p><kbd>Enter</kbd>/<kbd>Space</kbd> 继续　<kbd>1</kbd>–<kbd>9</kbd> 选择　<kbd>M</kbd> 音乐　<kbd>H</kbd> 回顾　<kbd>S</kbd> 存档　<kbd>Esc</kbd> 首页</p></div>
       <label className="gg-setting-row"><span>开发调试</span><input type="checkbox" checked={debug} onChange={event => setDebug(event.target.checked)} /></label>
       <div className="gg-panel-actions"><button className="gg-button" type="button" onClick={() => setPanel('gallery')}><Palette size={16} />对话框图鉴</button><button className="gg-button" type="button" onClick={restart}><RotateCcw size={16} />重新开始</button></div>
     </Panel>}

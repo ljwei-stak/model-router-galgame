@@ -156,6 +156,15 @@ async function reload() {
   await waitFor(() => document.readyState === 'complete', [], 180_000, 'DSH Desktop reload')
 }
 
+async function leaveTitle() {
+  const choice = await cdp.evaluate(() => {
+    const title = document.querySelector('.gg-title-screen')
+    if (!title) return null
+    return [...title.querySelectorAll('button')].some(button => button.textContent.trim() === '继续旅程') ? '继续旅程' : '从序章开始'
+  })
+  if (choice) await clickExact(choice, '.gg-title-screen')
+}
+
 async function openStory() {
   await waitFor(() => document.body && document.body.innerText.length > 0, [], 180_000, 'DSH Desktop application')
   const onboarding = await cdp.evaluate(() => document.querySelector('[role="dialog"]')?.textContent.includes('内测声明') || false)
@@ -166,6 +175,7 @@ async function openStory() {
     await clickExact('GAL游戏')
   }
   await waitFor(() => Boolean(document.querySelector('[data-testid="gal-story"]')), [], 30_000, 'GAL story view')
+  await leaveTitle()
 }
 
 async function noTyping() {
@@ -394,8 +404,9 @@ try {
   report.ending = currentStoryNode(state).ending.id
   assert.equal(Object.keys(report.portraits).length, 8)
   assert.equal(new Set(Object.values(report.portraits).map(item => item.sourceHash)).size, 8)
-  assert.equal(Object.keys(report.backgrounds).length, STORY_CHAPTERS.length)
-  assert.equal(new Set(Object.values(report.backgrounds).map(item => item.sourceHash)).size, STORY_CHAPTERS.length)
+  const mainChapters = STORY_CHAPTERS.filter(chapter => !chapter.optional)
+  assert.equal(Object.keys(report.backgrounds).length, mainChapters.length)
+  assert.equal(new Set(Object.values(report.backgrounds).map(item => item.sourceHash)).size, mainChapters.length)
 
   const endingLayout = await cdp.evaluate(() => {
     const story = document.querySelector('[data-testid="gal-story"]')
@@ -427,15 +438,17 @@ try {
   await clickExact('继续旧城迁移篇', '.gg-panel')
   assert.equal((await storySnapshot()).episodeId, 'legacy')
   assert.equal((await storySnapshot()).nodeId, 'arrival-01')
+  await leaveTitle()
   await noTyping()
   await advanceUi()
   const oldSave = await cdp.evaluate(key => localStorage.getItem(key), baseKey)
   await clickExact('剧目与章节')
   await clickExact('继续千桥协议', '.gg-panel')
   assert.equal((await storySnapshot()).nodeId, state.nodeId)
+  await leaveTitle()
   assert.equal(await cdp.evaluate(key => localStorage.getItem(key), newKey), newSave)
 
-  for (const chapter of STORY_CHAPTERS) {
+  for (const chapter of STORY_CHAPTERS.filter(item => !item.optional)) {
     await clickExact('剧目与章节')
     await clickExact(`试玩：${chapter.title}`, '.gg-panel')
     await clickExact('确认', '.gg-panel')

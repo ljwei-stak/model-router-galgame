@@ -29,6 +29,13 @@ let page, story
 const report = { actualHarness: !isPreview, chapters: [], decisions: [], portraits: {}, backgrounds: {}, errors: [], gameTurnCalls: 0 }
 async function closePanel() { await page.locator('.gg-panel').last().getByRole('button', { name: '关闭', exact: true }).click() }
 async function confirm() { await page.locator('.gg-panel').last().getByRole('button', { name: '确认', exact: true }).click() }
+async function leaveTitle() {
+  const title = story.locator('.gg-title-screen')
+  if (!await title.count()) return
+  const resume = title.getByRole('button', { name: '继续旅程', exact: true })
+  if (await resume.count()) await resume.click()
+  else await title.getByRole('button', { name: '从序章开始', exact: true }).click()
+}
 async function openStory() {
   if (!isPreview) {
     const onboarding = page.getByRole('dialog').filter({ hasText: '内测声明' })
@@ -49,6 +56,7 @@ async function openStory() {
   }
   story = page.getByTestId('gal-story')
   await story.waitFor()
+  await leaveTitle()
 }
 async function noTyping() {
   await story.getByRole('button', { name: '剧情与显示设置', exact: true }).click()
@@ -183,8 +191,9 @@ try {
   report.ending = currentStoryNode(state).ending.id
   assert.equal(Object.keys(report.portraits).length, 8)
   assert.equal(new Set(Object.values(report.portraits).map(item => item.sourceHash)).size, 8)
-  assert.equal(Object.keys(report.backgrounds).length, STORY_CHAPTERS.length)
-  assert.equal(new Set(Object.values(report.backgrounds).map(item => item.sourceHash)).size, STORY_CHAPTERS.length)
+  const mainChapters = STORY_CHAPTERS.filter(chapter => !chapter.optional)
+  assert.equal(Object.keys(report.backgrounds).length, mainChapters.length)
+  assert.equal(new Set(Object.values(report.backgrounds).map(item => item.sourceHash)).size, mainChapters.length)
   const endingLayout = await story.evaluate(element => ({
     institutionalHeadings: [...element.querySelectorAll('.gg-story-ending>div>h2')].map(item => item.textContent),
     relationshipCards: element.querySelectorAll('.gg-relationship-epilogues article').length,
@@ -208,13 +217,15 @@ try {
   await page.getByRole('button', { name: '继续旧城迁移篇', exact: true }).click()
   assert.equal(await story.getAttribute('data-episode-id'), 'legacy')
   assert.equal(await story.getAttribute('data-node-id'), 'arrival-01')
+  await leaveTitle()
   await noTyping(); await clickNext()
   const oldSave = await page.evaluate(key => localStorage.getItem(key), baseKey)
   await story.getByRole('button', { name: '剧目与章节', exact: true }).click()
   await page.getByRole('button', { name: '继续千桥协议', exact: true }).click()
   assert.equal(await story.getAttribute('data-node-id'), state.nodeId)
+  await leaveTitle()
   assert.equal(await page.evaluate(key => localStorage.getItem(key), newKey), newSave)
-  for (const chapter of STORY_CHAPTERS) {
+  for (const chapter of STORY_CHAPTERS.filter(item => !item.optional)) {
     await story.getByRole('button', { name: '剧目与章节', exact: true }).click()
     await page.getByRole('button', { name: `试玩：${chapter.title}`, exact: true }).click(); await confirm()
     assert.equal(await story.getAttribute('data-node-id'), chapter.startNodeId)

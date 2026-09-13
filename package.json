@@ -1,6 +1,6 @@
 {
   "name": "@ljwei-stak/model-router-galgame",
-  "version": "0.4.29",
+  "version": "0.4.30",
   "type": "module",
   "description": "DeepSeek Harness plugin: adaptive model routing, cost analysis and GAL view",
   "repository": {
@@ -57,6 +57,7 @@
     "build:client": "node scripts/build-client.mjs",
     "check:client": "node scripts/build-client.mjs --check",
     "preview:gal": "node scripts/gal-preview.mjs",
+    "check:story-v3": "node scripts/check-harness-story-v3.mjs --preview",
     "test": "node --test tests/*.test.mjs"
   },
   "license": "MIT",

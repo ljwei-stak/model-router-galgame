@@ -2,6 +2,21 @@
 
 日期：2026-09-07。项目路径：`F:\codex\model-router-gal-preview`。开发基础提交：`829546d`。下方试玩记录使用 `0.4.20` 开发版本；用户随后授权将本次功能发布为 `0.4.21`。
 
+## 0.4.30：千桥协议第三阶段
+
+日期：2026-09-13。第三阶段在八章主线之外补齐 22 条角色支线，每条均包含独立两难、两种收束、一项角色承诺和一份证据；《千桥协议》总图现为 666 个节点、44 处选择、33 项承诺、42 项证据、六类制度结局、四组独立关系尾声和 44 种支线收束。
+
+Galgame 首页、七处新增宽屏地点、全角色十态表情演出、七套 MiniMax M3 乐谱和无障碍设置已经接入。Kimi 长笛、Claude 诗句与千桥事故第九拍错位作为可听见且可阅读的重复线索出现；运行时音乐由 Web Audio 本地合成，不请求远程模型。用户提供的去底立绘已经替换到运行素材，桌面舞台角色高度保持在背景的 75% 以上。
+
+| 检查 | 第三阶段结果 |
+| --- | --- |
+| `pnpm install --frozen-lockfile` / `npm run build:client` / `npm run check:client` / `pnpm peers check` | 全部通过，客户端产物可复现 |
+| `npm test` | 174 项通过，0 失败、0 跳过 |
+| 第三阶段独立预览 | 22 条支线、7 张扩展背景、九种实际触发表情、三类声音线索、桌面/手机首页及无障碍状态通过；0 页面错误、0 模型调用 |
+| DSH Desktop 2.0.7 实机 | 0.4.30 候选 tarball 安装到实际 `desktop` profile 后冷启动；八章 355 步主线回归及 22 条角色支线全部通过；首页、声音字幕、角色尺寸、扩展背景和 390 像素布局通过；0 页面错误、0 模型调用 |
+
+实机报告保存在 `test-artifacts/desktop-story-v3-report.json` 和 `desktop-story-v2-report.json`；首页与代表支线截图使用 `desktop-story-v3-title-1440.png`、`desktop-story-v3-title-390.png`、`desktop-story-v3-route-kimi.png` 等文件。MiniMax 乐谱生成记录为 `.dsh-plugin/client/audio-score-manifest.json`，背景提示摘要记录为 `aipicture/story-backgrounds/PHASE3_PROMPTS.md`。
+
 ## 0.4.29：千桥协议第二阶段
 
 日期：2026-09-13。项目路径：`F:\codex\model-router-galgame`。本轮在 0.4.28 第一阶段基础上加入三港调查、开放与穹顶听证、协议组合和六种黎明，形成八章、424 个节点与 22 处选择。第二阶段状态包含开放、安全、自主、证据、团结五条全局立场轴，11 类角色承诺与 20 项证据目录；导入存档时仍从选择轨迹重放，不信任外部注入的状态字段。

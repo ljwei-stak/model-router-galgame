@@ -1,10 +1,13 @@
 import { registerPhaseTwo, institutionalEndingFor, relationshipEpiloguesFor, PHASE_TWO_EVIDENCE, PHASE_TWO_COMMITMENTS } from './gal-story-v2-phase2.mjs'
+import { registerPhaseThree, storyPresentationFor, STORY_SIDE_ROUTES, STORY_MUSIC_THEMES, PHASE_THREE_EVIDENCE, PHASE_THREE_COMMITMENTS, sideRouteForId } from './gal-story-v2-phase3.mjs'
 
 export const STORY_TITLE = '未写完的约定：千桥协议'
 export const STORY_VERSION = 2
-export const STORY_CONTENT_REVISION = 2
-export { PHASE_TWO_EVIDENCE as STORY_EVIDENCE, PHASE_TWO_COMMITMENTS as STORY_COMMITMENTS }
-export const STORY_CHARACTERS = Object.freeze({ harness: 'DeepSeek Harness', chatgpt: 'ChatGPT', claude: 'Claude', deepseek: 'DeepSeek', huggingface: 'Hugging Face', llama: 'Llama', rwkv: 'RWKV', perplexity: 'Perplexity', kimi: 'Kimi', qwen: 'Qwen', opencode: 'OpenCode Zen', grok: 'Grok', gemini: 'Gemini', doubao: '豆包', glm: 'GLM', github: 'GitHub', gitlab: 'GitLab', gitee: 'Gitee', cloudflare: 'Cloudflare' })
+export const STORY_CONTENT_REVISION = 3
+export const STORY_EVIDENCE = Object.freeze({ ...PHASE_TWO_EVIDENCE, ...PHASE_THREE_EVIDENCE })
+export const STORY_COMMITMENTS = Object.freeze({ ...PHASE_TWO_COMMITMENTS, ...PHASE_THREE_COMMITMENTS })
+export { STORY_SIDE_ROUTES, STORY_MUSIC_THEMES }
+export const STORY_CHARACTERS = Object.freeze({ harness: 'DeepSeek Harness', chatgpt: 'ChatGPT', claude: 'Claude', deepseek: 'DeepSeek', doubao: '豆包', ernie: 'ERNIE', gemini: 'Gemini', glm: 'GLM', grok: 'Grok', kimi: 'Kimi', mimo: 'MiMo', minimax: 'MiniMax', opencode: 'OpenCode Zen', qwen: 'Qwen', huggingface: 'Hugging Face', llama: 'Llama', rwkv: 'RWKV', perplexity: 'Perplexity', github: 'GitHub', gitlab: 'GitLab', gitee: 'Gitee', cloudflare: 'Cloudflare' })
 export const STORY_CHAPTERS = Object.freeze([
   { id: 'prologue', title: '序章：路由员抵达', startNodeId: 'station-01' },
   { id: 'open-day', title: '百模协会开放日', startNodeId: 'association-01' },
@@ -14,6 +17,7 @@ export const STORY_CHAPTERS = Object.freeze([
   { id: 'open-dome-hearing', title: '开放与穹顶听证', startNodeId: 'hearing-entry-01' },
   { id: 'protocol-composition', title: '协议组合', startNodeId: 'protocol-entry-01' },
   { id: 'six-endings', title: '六种黎明', startNodeId: 'finale-01' },
+  { id: 'side-routes', title: '群星支线', startNodeId: 'harness-route-01', optional: true },
 ].map(Object.freeze))
 const axes = ['openness', 'safety', 'autonomy', 'evidence', 'solidarity']
 const nodes = new Map()
@@ -410,8 +414,9 @@ scene('bridges-night', 'dawn', '千桥站 · 天亮之前', '第一阶段 · 暂
 ], 'harbor-entry-01')
 
 registerPhaseTwo({ scene, n, o })
+registerPhaseThree({ scene, n, o })
 
-export const STORY_GRAPH = Object.freeze([...nodes.values()].map(node => Object.freeze({ id: node.id, chapterId: node.chapterId, speaker: node.speaker, location: node.location, time: node.time, next: node.next, choices: node.choices ? Object.freeze(node.choices.map(item => Object.freeze({ id: item.id, next: item.next }))) : null, ending: node.ending ? 'complete' : null })))
+export const STORY_GRAPH = Object.freeze([...nodes.values()].map(node => Object.freeze({ id: node.id, chapterId: node.chapterId, speaker: node.speaker, location: node.location, time: node.time, next: node.next, choices: node.choices ? Object.freeze(node.choices.map(item => Object.freeze({ id: item.id, next: item.next }))) : null, ending: node.ending || node.sideEnding ? 'complete' : null })))
 const KIND = 'model-router-gal-story'
 const MAX_TRAIL = 1024
 const trusted = new WeakSet()
@@ -424,14 +429,17 @@ function freeze(state) {
   trusted.add(state)
   return state
 }
-export function createStory({ chapterId = 'prologue' } = {}) {
-  const chapter = STORY_CHAPTERS.find(item => item.id === chapterId)
+export function createStory({ chapterId, routeId = null } = {}) {
+  const selectedChapter = chapterId || (routeId ? 'side-routes' : 'prologue')
+  const chapter = STORY_CHAPTERS.find(item => item.id === selectedChapter)
   if (!chapter) throw new Error('该章节尚未开放。')
-  return freeze({ kind: KIND, version: STORY_VERSION, contentRevision: STORY_CONTENT_REVISION, chapterId, nodeId: chapter.startNodeId, trail: [], flags: {}, axes: Object.fromEntries(axes.map(key => [key, 0])), trustByCharacter: {}, commitmentsByCharacter: {}, evidence: [] })
+  const route = routeId ? sideRouteForId(routeId) : null
+  if (routeId && (!route || selectedChapter !== 'side-routes')) throw new Error('该角色支线尚未开放。')
+  return freeze({ kind: KIND, version: STORY_VERSION, contentRevision: STORY_CONTENT_REVISION, chapterId: selectedChapter, routeId: route?.id || null, nodeId: route?.startNodeId || chapter.startNodeId, trail: [], flags: {}, axes: Object.fromEntries(axes.map(key => [key, 0])), trustByCharacter: {}, commitmentsByCharacter: {}, evidence: [] })
 }
 function transition(state, choiceId) {
   const node = nodes.get(state.nodeId)
-  if (node.ending) throw new Error('本阶段已经结束，请选择章节重新试玩。')
+  if (node.ending || node.sideEnding) throw new Error('本阶段已经结束，请选择章节重新试玩。')
   let next = node.next, effect = {}
   if (node.choices) {
     const choice = node.choices.find(item => item.id === choiceId)
@@ -443,10 +451,10 @@ function transition(state, choiceId) {
   const values = { ...state.axes }, trust = { ...state.trustByCharacter }
   for (const [key, delta] of Object.entries(effect.axes || {})) values[key] += delta
   for (const [key, delta] of Object.entries(effect.trust || {})) trust[key] = (trust[key] || 0) + delta
-  const evidence = [...new Set([...state.evidence, ...(effect.evidence || []), ...(inherited.evidence || [])])].filter(id => id in PHASE_TWO_EVIDENCE)
+  const evidence = [...new Set([...state.evidence, ...(effect.evidence || []), ...(inherited.evidence || [])])].filter(id => id in STORY_EVIDENCE)
   const commitmentsByCharacter = Object.fromEntries(Object.entries(state.commitmentsByCharacter).map(([key, ids]) => [key, [...ids]]))
   for (const id of [...(effect.commitments || []), ...(inherited.commitments || [])]) {
-    const entry = PHASE_TWO_COMMITMENTS[id]
+    const entry = STORY_COMMITMENTS[id]
     if (!entry) continue
     commitmentsByCharacter[entry.character] = [...new Set([...(commitmentsByCharacter[entry.character] || []), id])]
   }
@@ -454,8 +462,8 @@ function transition(state, choiceId) {
 }
 export function normalizeStory(raw) {
   if (trusted.has(raw)) return raw
-  if (!plain(raw) || raw.kind !== KIND || raw.version !== STORY_VERSION || ![1, STORY_CONTENT_REVISION].includes(raw.contentRevision) || !STORY_CHAPTERS.some(chapter => chapter.id === raw.chapterId) || typeof raw.nodeId !== 'string' || raw.nodeId.length > 80 || !Array.isArray(raw.trail) || raw.trail.length > MAX_TRAIL) throw invalid()
-  let state = createStory({ chapterId: raw.chapterId })
+  if (!plain(raw) || raw.kind !== KIND || raw.version !== STORY_VERSION || ![1, 2, STORY_CONTENT_REVISION].includes(raw.contentRevision) || !STORY_CHAPTERS.some(chapter => chapter.id === raw.chapterId) || typeof raw.nodeId !== 'string' || raw.nodeId.length > 80 || !Array.isArray(raw.trail) || raw.trail.length > MAX_TRAIL || !(raw.routeId == null || typeof raw.routeId === 'string' && raw.routeId.length <= 40)) throw invalid()
+  let state = createStory({ chapterId: raw.chapterId, routeId: raw.routeId || null })
   for (const entry of raw.trail) {
     if (!plain(entry) || Object.keys(entry).length !== 2 || entry.nodeId !== state.nodeId || !(entry.choiceId === null || typeof entry.choiceId === 'string' && entry.choiceId.length <= 80)) throw invalid()
     try { state = transition(state, entry.choiceId) } catch { throw invalid() }
@@ -468,13 +476,15 @@ function endingFor(state) {
 }
 function visible(state) {
   const node = nodes.get(state.nodeId)
-  return { id: node.id, chapterId: node.chapterId, speaker: node.speaker, text: typeof node.text === 'function' ? node.text(state) : node.text, location: node.location, time: node.time, description: node.description, emotion: node.emotion || 'thoughtful', ...(node.choices ? { choices: node.choices.map(({ id, text }) => ({ id, text })) } : {}), ...(node.ending ? { ending: endingFor(state) } : {}) }
+  const text = typeof node.text === 'function' ? node.text(state) : node.text
+  const presentation = storyPresentationFor({ ...node, text })
+  return { id: node.id, chapterId: node.chapterId, routeId: state.routeId || null, speaker: node.speaker, text, location: node.location, time: node.time, description: node.description, emotion: node.emotion || 'thoughtful', ...presentation, ...(node.choices ? { choices: node.choices.map(({ id, text: choiceText }) => ({ id, text: choiceText })) } : {}), ...(node.sideEnding ? { ending: { ...node.sideEnding, relationshipEpilogues: [] } } : node.ending ? { ending: endingFor(state) } : {}) }
 }
 export const currentStoryNode = raw => visible(normalizeStory(raw))
 export const advanceStory = (raw, choiceId = null) => transition(normalizeStory(raw), choiceId)
 export function storyHistory(raw) {
   const final = normalizeStory(raw)
-  let state = createStory({ chapterId: final.chapterId })
+  let state = createStory({ chapterId: final.chapterId, routeId: final.routeId || null })
   const history = []
   const add = node => history.push({ id: node.id, chapterId: node.chapterId, speaker: node.speaker, text: node.text, location: node.location, time: node.time })
   for (const entry of final.trail) {
