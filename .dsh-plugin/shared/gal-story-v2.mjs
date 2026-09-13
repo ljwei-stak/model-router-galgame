@@ -1,16 +1,46 @@
+import { registerPhaseTwo, institutionalEndingFor, relationshipEpiloguesFor, PHASE_TWO_EVIDENCE, PHASE_TWO_COMMITMENTS } from './gal-story-v2-phase2.mjs'
+
 export const STORY_TITLE = '未写完的约定：千桥协议'
 export const STORY_VERSION = 2
+export const STORY_CONTENT_REVISION = 2
+export { PHASE_TWO_EVIDENCE as STORY_EVIDENCE, PHASE_TWO_COMMITMENTS as STORY_COMMITMENTS }
 export const STORY_CHARACTERS = Object.freeze({ harness: 'DeepSeek Harness', chatgpt: 'ChatGPT', claude: 'Claude', deepseek: 'DeepSeek', huggingface: 'Hugging Face', llama: 'Llama', rwkv: 'RWKV', perplexity: 'Perplexity', kimi: 'Kimi', qwen: 'Qwen', opencode: 'OpenCode Zen', grok: 'Grok', gemini: 'Gemini', doubao: '豆包', glm: 'GLM', github: 'GitHub', gitlab: 'GitLab', gitee: 'Gitee', cloudflare: 'Cloudflare' })
 export const STORY_CHAPTERS = Object.freeze([
   { id: 'prologue', title: '序章：路由员抵达', startNodeId: 'station-01' },
   { id: 'open-day', title: '百模协会开放日', startNodeId: 'association-01' },
   { id: 'laurel', title: '月桂审议', startNodeId: 'theatre-01' },
   { id: 'bridges-night', title: '千桥之夜', startNodeId: 'bridge-01' },
+  { id: 'three-harbors', title: '三港调查', startNodeId: 'harbor-entry-01' },
+  { id: 'open-dome-hearing', title: '开放与穹顶听证', startNodeId: 'hearing-entry-01' },
+  { id: 'protocol-composition', title: '协议组合', startNodeId: 'protocol-entry-01' },
+  { id: 'six-endings', title: '六种黎明', startNodeId: 'finale-01' },
 ].map(Object.freeze))
 const axes = ['openness', 'safety', 'autonomy', 'evidence', 'solidarity']
 const nodes = new Map()
 const n = (speaker, text, extra = {}) => ({ speaker, text, ...extra })
-const o = (id, text, next, flags, values = {}, trust = {}) => ({ id, text, next, effect: { flags, axes: values, trust } })
+const o = (id, text, next, flags, values = {}, trust = {}, commitments = [], evidence = []) => ({ id, text, next, effect: { flags, axes: values, trust, commitments, evidence } })
+const inheritedChoiceEffects = Object.freeze({
+  'minimal-list': { evidence: ['visitor-consent-ledger'] },
+  'consented-list': { evidence: ['visitor-consent-ledger'] },
+  'freeze-package': { evidence: ['model-card-gap'] },
+  'gate-data': { evidence: ['model-card-gap'] },
+  'edge-demo': { evidence: ['edge-benchmark'], commitments: ['llama-offline-right', 'rwkv-small-architecture'] },
+  'comparison-demo': { evidence: ['edge-benchmark'] },
+  'record-achievement': { evidence: ['laurel-record'], commitments: ['claude-own-voice'] },
+  'record-lineage': { evidence: ['laurel-record'], commitments: ['chatgpt-stop-completing'] },
+  'public-excerpt': { evidence: ['recording-custody'], commitments: ['kimi-context-custody'] },
+  'sealed-audit': { evidence: ['recording-custody'], commitments: ['kimi-context-custody', 'perplexity-citation-chain'] },
+  'poison-drill': { evidence: ['skill-drill'], commitments: ['harness-stop-right'] },
+  'outage-drill': { evidence: ['skill-drill'], commitments: ['harness-stop-right'] },
+  'staged-key': { evidence: ['production-key-scope'] },
+  'watched-key': { evidence: ['production-key-scope'] },
+  'cut-network': { evidence: ['containment-timeline'] },
+  'isolate-mirror': { evidence: ['containment-timeline'] },
+  'redacted-trace': { evidence: ['incident-attestation'], commitments: ['perplexity-citation-chain'] },
+  'joint-report': { evidence: ['incident-attestation'], commitments: ['kimi-context-custody'] },
+  'keep-watch': { commitments: ['harness-stop-right'] },
+  'local-first': { commitments: ['harness-stop-right', 'llama-offline-right'] },
+})
 function scene(chapterId, slug, location, time, description, rows, next = null) {
   rows.forEach((row, index) => {
     const id = `${slug}-${String(index + 1).padStart(2, '0')}`
@@ -376,17 +406,20 @@ scene('bridges-night', 'after', '百模协会 · 临时夜班桌', '签署翌日
 scene('bridges-night', 'dawn', '千桥站 · 天亮之前', '第一阶段 · 暂别', '窗外有些桥亮着，有些仍然封闭。负责开门的人还坐在门边。', [
   n('kimi', state => state.flags.nextDuty === 'local' ? '那就把谱分给愿意带走的人，各自记下没合上的拍子。下次见面，再听它们怎样不同。' : '我留到交班。未公开的那几页仍由当事人保管，谁来复核，就请谁走到他们面前。'),
   n('narrator', state => state.flags.containment === 'cut' ? '你们暂时留住了一个可以辨认的现场，也让许多人度过了没有服务的一夜。天亮不会替你宣布这个选择毫无代价。' : '你们留下了仍能工作的入口，也多背负了一轮污染的范围。有人因此没有停课，有人仍在等待通知。'),
-  n('harness', '这次记录的最后一栏，我没有填“完成”。写的是：已经有人接班。', { ending: true }),
-])
+  n('harness', '这次记录的最后一栏，我没有填“完成”。写的是：已经有人接班。三港渡船在十分钟后离站。'),
+], 'harbor-entry-01')
 
-export const STORY_GRAPH = Object.freeze([...nodes.values()].map(node => Object.freeze({ id: node.id, chapterId: node.chapterId, speaker: node.speaker, location: node.location, time: node.time, next: node.next, choices: node.choices ? Object.freeze(node.choices.map(item => Object.freeze({ id: item.id, next: item.next }))) : null, ending: node.ending ? 'phase-one' : null })))
+registerPhaseTwo({ scene, n, o })
+
+export const STORY_GRAPH = Object.freeze([...nodes.values()].map(node => Object.freeze({ id: node.id, chapterId: node.chapterId, speaker: node.speaker, location: node.location, time: node.time, next: node.next, choices: node.choices ? Object.freeze(node.choices.map(item => Object.freeze({ id: item.id, next: item.next }))) : null, ending: node.ending ? 'complete' : null })))
 const KIND = 'model-router-gal-story'
 const MAX_TRAIL = 1024
 const trusted = new WeakSet()
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value))
 const invalid = () => new Error('千桥协议存档损坏或版本不受支持，原存档应当保留。')
 function freeze(state) {
-  Object.freeze(state.flags); Object.freeze(state.axes); Object.freeze(state.trustByCharacter)
+  Object.values(state.commitmentsByCharacter).forEach(Object.freeze)
+  Object.freeze(state.flags); Object.freeze(state.axes); Object.freeze(state.trustByCharacter); Object.freeze(state.commitmentsByCharacter); Object.freeze(state.evidence)
   state.trail.forEach(Object.freeze); Object.freeze(state.trail); Object.freeze(state)
   trusted.add(state)
   return state
@@ -394,7 +427,7 @@ function freeze(state) {
 export function createStory({ chapterId = 'prologue' } = {}) {
   const chapter = STORY_CHAPTERS.find(item => item.id === chapterId)
   if (!chapter) throw new Error('该章节尚未开放。')
-  return freeze({ kind: KIND, version: STORY_VERSION, contentRevision: 1, chapterId, nodeId: chapter.startNodeId, trail: [], flags: {}, axes: Object.fromEntries(axes.map(key => [key, 0])), trustByCharacter: {} })
+  return freeze({ kind: KIND, version: STORY_VERSION, contentRevision: STORY_CONTENT_REVISION, chapterId, nodeId: chapter.startNodeId, trail: [], flags: {}, axes: Object.fromEntries(axes.map(key => [key, 0])), trustByCharacter: {}, commitmentsByCharacter: {}, evidence: [] })
 }
 function transition(state, choiceId) {
   const node = nodes.get(state.nodeId)
@@ -406,14 +439,22 @@ function transition(state, choiceId) {
     next = choice.next; effect = choice.effect
   } else if (choiceId !== null) throw new Error('当前剧情没有这个选项。')
   if (!nodes.has(next) || state.trail.length >= MAX_TRAIL) throw new Error('剧情路径不存在或超出长度限制。')
+  const inherited = inheritedChoiceEffects[choiceId] || {}
   const values = { ...state.axes }, trust = { ...state.trustByCharacter }
   for (const [key, delta] of Object.entries(effect.axes || {})) values[key] += delta
   for (const [key, delta] of Object.entries(effect.trust || {})) trust[key] = (trust[key] || 0) + delta
-  return freeze({ ...state, nodeId: next, flags: { ...state.flags, ...effect.flags }, axes: values, trustByCharacter: trust, trail: [...state.trail, { nodeId: node.id, choiceId }] })
+  const evidence = [...new Set([...state.evidence, ...(effect.evidence || []), ...(inherited.evidence || [])])].filter(id => id in PHASE_TWO_EVIDENCE)
+  const commitmentsByCharacter = Object.fromEntries(Object.entries(state.commitmentsByCharacter).map(([key, ids]) => [key, [...ids]]))
+  for (const id of [...(effect.commitments || []), ...(inherited.commitments || [])]) {
+    const entry = PHASE_TWO_COMMITMENTS[id]
+    if (!entry) continue
+    commitmentsByCharacter[entry.character] = [...new Set([...(commitmentsByCharacter[entry.character] || []), id])]
+  }
+  return freeze({ ...state, nodeId: next, flags: { ...state.flags, ...effect.flags }, axes: values, trustByCharacter: trust, commitmentsByCharacter, evidence, trail: [...state.trail, { nodeId: node.id, choiceId }] })
 }
 export function normalizeStory(raw) {
   if (trusted.has(raw)) return raw
-  if (!plain(raw) || raw.kind !== KIND || raw.version !== STORY_VERSION || raw.contentRevision !== 1 || !STORY_CHAPTERS.some(chapter => chapter.id === raw.chapterId) || typeof raw.nodeId !== 'string' || raw.nodeId.length > 80 || !Array.isArray(raw.trail) || raw.trail.length > MAX_TRAIL) throw invalid()
+  if (!plain(raw) || raw.kind !== KIND || raw.version !== STORY_VERSION || ![1, STORY_CONTENT_REVISION].includes(raw.contentRevision) || !STORY_CHAPTERS.some(chapter => chapter.id === raw.chapterId) || typeof raw.nodeId !== 'string' || raw.nodeId.length > 80 || !Array.isArray(raw.trail) || raw.trail.length > MAX_TRAIL) throw invalid()
   let state = createStory({ chapterId: raw.chapterId })
   for (const entry of raw.trail) {
     if (!plain(entry) || Object.keys(entry).length !== 2 || entry.nodeId !== state.nodeId || !(entry.choiceId === null || typeof entry.choiceId === 'string' && entry.choiceId.length <= 80)) throw invalid()
@@ -423,9 +464,7 @@ export function normalizeStory(raw) {
   return state
 }
 function endingFor(state) {
-  const contained = state.flags.containment === 'cut'
-  const staged = state.flags.productionKey === 'staged'
-  return { id: contained ? 'paused-bridges' : 'guarded-bridges', title: contained ? '暂歇的桥，未熄的火' : '有人守夜的桥', description: `${staged ? '草稿权限缩小了生产事故的范围。' : '短时发布保住了部分进度，也扩大了需要通知的范围。'}${contained ? '全网暂停留下现场，本地工坊接续了有限服务。' : '只读入口继续服务，未登记镜像的额外同步仍需追查。'}${state.flags.disclosure === 'trace' ? '公开轨迹开启了共同复核，也留下隐私识别风险。' : '联合报告先行，独立保管与限期复核仍待兑现。'}${state.flags.nextDuty === 'local' ? '下一班先帮助各工坊恢复工作。' : '下一班继续核查证据与影响范围。'}第一阶段试玩完。后续调查与完整结局尚未开放。` }
+  return { ...institutionalEndingFor(state), relationshipEpilogues: relationshipEpiloguesFor(state) }
 }
 function visible(state) {
   const node = nodes.get(state.nodeId)

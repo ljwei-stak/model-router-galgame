@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, Bug, Check, Download, History, MapPin, Palette, P
 import { STORY_EPISODES, STORY_CHARACTERS, getStoryEpisode, createStory, normalizeStory, currentStoryNode, advanceStory, storyHistory } from '../shared/gal-story-catalog.mjs'
 import { readStory, readStorySlots, writeStory, STORY_STORAGE_KEY, episodeStorageKey, selectedStoryEpisode } from './gal-story-storage.mjs'
 import { CHARACTER_IMAGES } from './characters.mjs'
+import { STORY_BACKGROUNDS } from './gal-story-backgrounds.mjs'
 import { expressionFor } from './gal-game-expressions.mjs'
 import { GalDialogue } from './GalDialogue.jsx'
 import { GalDialogueGallery } from './GalDialogueGallery.jsx'
@@ -58,8 +59,10 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
   const history = useMemo(() => storyHistory(state), [state])
   const portraitLine = [...history].reverse().find(line => line.location === node.location && CHARACTER_IMAGES[line.speaker])
   const character = CHARACTER_IMAGES[node.speaker] ? node.speaker : portraitLine?.speaker
+  const background = STORY_BACKGROUNDS[node.chapterId]
   const complete = !animate || shown >= node.text.length
   const hasChoices = Boolean(node.choices?.length)
+  const hasInstitutionalEnding = Boolean(node.ending?.relationshipEpilogues?.length)
 
   useEffect(() => {
     try { setSlots(readStorySlots(storage(), storageKey, episodeId)) }
@@ -185,16 +188,16 @@ function StoryReader({ storageKey, episodeId, onChooseEpisode, scene: dialogueSc
         <Tool label="剧情与显示设置" icon={Settings2} onClick={() => setPanel('settings')} />
       </div>
     </header>
-    <main className="gg-main">
-      <section className="gg-stage" aria-label="游戏场景">
+    <main className={`gg-main${hasChoices ? ' has-choices' : ''}${hasInstitutionalEnding ? ' is-institutional-ending' : ''}`}>
+      <section className={`gg-stage${background ? ' has-background' : ''}`} aria-label={`${node.location}。${node.description}`} style={background ? { backgroundImage: `url(${background})` } : undefined}>
         <div className="gg-scene-meta"><span><MapPin size={13} />{node.location}</span><time>{node.time}</time></div>
-        <div className="gg-scene-placeholder"><h2>{node.location}</h2><span className="gg-placeholder-rule" /><p>{node.description}</p></div>
+        {!background && <div className="gg-scene-placeholder"><h2>{node.location}</h2><span className="gg-placeholder-rule" /><p>{node.description}</p></div>}
         {character && <img className="gg-character" key={character} src={character === 'deepseek' ? expressionFor(node.speaker === character ? node.emotion || 'neutral' : 'neutral') : CHARACTER_IMAGES[character]} alt={speakerName(character)} draggable="false" />}
       </section>
       <GalDialogue ref={dialogueRef} character={node.speaker} speaker={speakerName(node.speaker)} text={node.text} shown={animate ? node.text.slice(0, shown) : node.text} onAdvance={() => progress()} canAdvance={!hasChoices && !node.ending} scene={dialogueScene} assetsMap={assetsMap} />
-      <div className="gg-input-band gg-story-actions">
+      <div className={`gg-input-band gg-story-actions${hasInstitutionalEnding ? ' is-institutional-ending' : ''}`}>
         {error && <div className="gg-error" role="alert"><span>{error}</span><Tool label="关闭提示" icon={X} onClick={() => setError('')} /></div>}
-        {node.ending ? <div className="gg-ending gg-story-ending"><div><h2>{node.ending.title}</h2><p>{node.ending.description}</p></div><Tool label="重新开始" icon={RotateCcw} onClick={restart} /></div> : hasChoices ? <div className="gg-story-choices" role="group" aria-label="你的选择">{node.choices.map(choice => <button type="button" key={choice.id} data-choice-id={choice.id} onClick={() => progress(choice.id)}>{choice.text}<ArrowRight size={16} /></button>)}</div> : <div className="gg-story-next"><button type="button" className="gg-next" onClick={() => dialogueRef.current?.advance()}>继续<ArrowRight size={16} /></button></div>}
+        {node.ending ? <div className="gg-ending gg-story-ending"><div className="gg-ending-copy">{hasInstitutionalEnding && <span className="gg-ending-kicker">制度结局</span>}<h2>{node.ending.title}</h2><p>{node.ending.description}</p>{hasInstitutionalEnding && <section className="gg-relationship-epilogues"><h3>关系尾声</h3><div>{node.ending.relationshipEpilogues.map(item => <article key={item.id}><h4>{item.title}</h4><p>{item.description}</p></article>)}</div></section>}</div><Tool label="重新开始" icon={RotateCcw} onClick={restart} /></div> : hasChoices ? <div className="gg-story-choices" role="group" aria-label="你的选择">{node.choices.map(choice => <button type="button" key={choice.id} data-choice-id={choice.id} onClick={() => progress(choice.id)}>{choice.text}<ArrowRight size={16} /></button>)}</div> : <div className="gg-story-next"><button type="button" className="gg-next" onClick={() => dialogueRef.current?.advance()}>继续<ArrowRight size={16} /></button></div>}
       </div>
     </main>
     {notice && <div className="gg-notice" role="status"><Check size={15} />{notice}</div>}

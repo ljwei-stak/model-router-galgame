@@ -26,7 +26,7 @@ const baseKey = storyStorageKey(isPreview ? 'model-router-galgame:preview:v1' : 
 const newKey = episodeStorageKey(baseKey, 'bridges')
 const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true })
 let page, story
-const report = { actualHarness: !isPreview, chapters: [], decisions: [], portraits: {}, errors: [], gameTurnCalls: 0 }
+const report = { actualHarness: !isPreview, chapters: [], decisions: [], portraits: {}, backgrounds: {}, errors: [], gameTurnCalls: 0 }
 async function closePanel() { await page.locator('.gg-panel').last().getByRole('button', { name: '关闭', exact: true }).click() }
 async function confirm() { await page.locator('.gg-panel').last().getByRole('button', { name: '确认', exact: true }).click() }
 async function openStory() {
@@ -74,16 +74,33 @@ async function snapshotCast(key) {
       const name = element.querySelector('.ggd-nameplate span')
       const image = element.querySelector('.gg-character')
       const bounds = element.getBoundingClientRect()
-      return { width: element.clientWidth, scrollWidth: element.scrollWidth, left: bounds.left, right: bounds.right, viewport: innerWidth, nameWidth: name.clientWidth, nameScrollWidth: name.scrollWidth, portraitWidth: image.getBoundingClientRect().width, fit: getComputedStyle(image).objectFit, speaker: name.textContent }
+      const stage = element.querySelector('.gg-stage').getBoundingClientRect()
+      const portrait = image.getBoundingClientRect()
+      return { width: element.clientWidth, scrollWidth: element.scrollWidth, left: bounds.left, right: bounds.right, viewport: innerWidth, nameWidth: name.clientWidth, nameScrollWidth: name.scrollWidth, portraitWidth: portrait.width, portraitHeight: portrait.height, stageHeight: stage.height, fit: getComputedStyle(image).objectFit, speaker: name.textContent }
     })
     assert.ok(fits.scrollWidth <= fits.width + 1 && fits.left >= -1 && fits.right <= fits.viewport + 1, `${key} horizontal overflow`)
     assert.ok(fits.nameScrollWidth <= fits.nameWidth + 1, `${key} clipped name`)
     assert.ok(fits.portraitWidth > 80 && fits.fit === 'contain')
+    assert.ok(fits.portraitHeight / fits.stageHeight >= .75, `${key} portrait is too small for the visual-novel stage`)
     await page.screenshot({ path: resolve(output, `${prefix}-${key}-${viewport.width}.png`), fullPage: true })
     sizes.push({ viewport, ...fits })
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
   report.portraits[key] = { name: data.name, sourceHash: srcHash, sizes }
+}
+async function snapshotBackground(chapterId) {
+  const data = await story.locator('.gg-stage').evaluate(async element => {
+    const css = element.style.backgroundImage
+    const source = css.startsWith('url("') ? css.slice(5, -2) : css.startsWith('url(') ? css.slice(4, -1) : ''
+    const image = new Image()
+    image.src = source
+    await image.decode()
+    return { source, width: image.naturalWidth, height: image.naturalHeight, size: getComputedStyle(element).backgroundSize, position: getComputedStyle(element).backgroundPosition }
+  })
+  assert.ok(data.width >= 1500 && data.height >= 800 && data.width / data.height > 1.6, `${chapterId} background dimensions`)
+  assert.equal(data.size, 'cover')
+  report.backgrounds[chapterId] = { sourceHash: createHash('sha256').update(data.source).digest('hex'), width: data.width, height: data.height, position: data.position }
+  await page.screenshot({ path: resolve(output, `${prefix}-background-${chapterId}.png`), fullPage: true })
 }
 try {
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: 'zh-CN' })
@@ -96,18 +113,45 @@ try {
   await noTyping()
   let state = createStory(), turns = 0
   const newCast = ['huggingface', 'llama', 'rwkv', 'perplexity', 'github', 'gitlab', 'gitee', 'cloudflare']
-  let testedSave = false
+  let testedSave = false, testedProtocolLayout = false
   for (; turns < 1024; turns++) {
     const node = currentStoryNode(state)
     assert.equal(await story.getAttribute('data-node-id'), node.id)
     assert.equal(await story.getAttribute('data-debug-enabled'), 'false')
     assert.equal(await story.locator('[data-testid="gal-story-debug"],progress').count(), 0)
     assert.equal(await story.locator('.gg-spoken').textContent(), node.text)
-    if (!report.chapters.includes(node.chapterId)) report.chapters.push(node.chapterId)
+    if (!report.chapters.includes(node.chapterId)) { report.chapters.push(node.chapterId); await snapshotBackground(node.chapterId) }
     if (newCast.includes(node.speaker) && !report.portraits[node.speaker]) await snapshotCast(node.speaker)
     if (node.choices) {
       assert.equal(await story.locator('[data-choice-id]').count(), node.choices.length)
       report.decisions.push(node.id)
+    }
+    if (!testedProtocolLayout && node.id === 'access-clause-04') {
+      const layouts = []
+      for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(viewport)
+        const layout = await story.evaluate(element => {
+          const choices = [...element.querySelectorAll('[data-choice-id]')]
+          const bounds = element.getBoundingClientRect()
+          return {
+            width: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            left: bounds.left,
+            right: bounds.right,
+            viewport: innerWidth,
+            choices: choices.length,
+            clippedChoices: choices.filter(choice => choice.scrollWidth > choice.clientWidth + 1).length,
+          }
+        })
+        assert.equal(layout.choices, 3)
+        assert.equal(layout.clippedChoices, 0)
+        assert.ok(layout.scrollWidth <= layout.width + 1 && layout.left >= -1 && layout.right <= layout.viewport + 1, 'protocol choices overflow')
+        await page.screenshot({ path: resolve(output, `${prefix}-protocol-choices-${viewport.width}.png`), fullPage: true })
+        layouts.push({ viewport, ...layout })
+      }
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      report.protocolChoiceLayout = layouts
+      testedProtocolLayout = true
     }
     if (!testedSave && node.chapterId === 'open-day' && node.choices) {
       await story.getByRole('button', { name: '存档与读档', exact: true }).click()
@@ -134,10 +178,27 @@ try {
     state = advanceStory(state, node.choices?.[0]?.id ?? null)
   }
   assert.ok(turns < 1024)
+  assert.equal(testedProtocolLayout, true)
   report.routeSteps = turns
   report.ending = currentStoryNode(state).ending.id
   assert.equal(Object.keys(report.portraits).length, 8)
   assert.equal(new Set(Object.values(report.portraits).map(item => item.sourceHash)).size, 8)
+  assert.equal(Object.keys(report.backgrounds).length, STORY_CHAPTERS.length)
+  assert.equal(new Set(Object.values(report.backgrounds).map(item => item.sourceHash)).size, STORY_CHAPTERS.length)
+  const endingLayout = await story.evaluate(element => ({
+    institutionalHeadings: [...element.querySelectorAll('.gg-story-ending>div>h2')].map(item => item.textContent),
+    relationshipCards: element.querySelectorAll('.gg-relationship-epilogues article').length,
+    width: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  assert.equal(endingLayout.institutionalHeadings.length, 1)
+  assert.equal(endingLayout.relationshipCards, 4)
+  assert.ok(endingLayout.scrollWidth <= endingLayout.width + 1)
+  await page.screenshot({ path: resolve(output, `${prefix}-ending-desktop.png`), fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: resolve(output, `${prefix}-ending-mobile.png`), fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  report.endingCards = endingLayout
   await story.getByRole('button', { name: '对话回顾', exact: true }).click()
   assert.ok((await page.locator('.gg-panel').innerText()).includes('如果路线不对'))
   await closePanel()

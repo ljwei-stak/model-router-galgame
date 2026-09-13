@@ -2,7 +2,7 @@ import * as legacy from './gal-story.mjs'
 import * as bridges from './gal-story-v2.mjs'
 
 export const STORY_EPISODES = Object.freeze([
-  Object.freeze({ id: 'bridges', title: '未写完的约定：千桥协议', label: '千桥协议', description: '第一阶段 · 序章、百模协会开放日、月桂审议、千桥之夜', chapters: bridges.STORY_CHAPTERS }),
+  Object.freeze({ id: 'bridges', title: '未写完的约定：千桥协议', label: '千桥协议', description: '完整八章 · 从路由员抵达到三港调查、联合听证、协议组合与六种黎明', chapters: bridges.STORY_CHAPTERS }),
   Object.freeze({ id: 'legacy', title: legacy.STORY_TITLE, label: '旧城迁移篇', description: '第一版完整故事 · 旧城迁移与 DeepSeek 的约定', chapters: [] }),
 ])
 export const STORY_CHARACTERS = Object.freeze({ ...legacy.STORY_CHARACTERS, ...bridges.STORY_CHARACTERS })

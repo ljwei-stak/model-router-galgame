@@ -32,6 +32,7 @@ class Cdp {
         const pending = this.pending.get(message.id)
         if (!pending) return
         this.pending.delete(message.id)
+        clearTimeout(pending.timer)
         if (message.error) pending.reject(new Error(`${pending.method}: ${message.error.message}`))
         else pending.resolve(message.result)
         return
@@ -46,10 +47,14 @@ class Cdp {
     this.listeners.set(method, listeners)
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, timeout = 30_000) {
     const id = ++this.nextId
     return new Promise((resolveSend, reject) => {
-      this.pending.set(id, { method, resolve: resolveSend, reject })
+      const timer = setTimeout(() => {
+        this.pending.delete(id)
+        reject(new Error(`${method}: CDP response timed out after ${timeout}ms`))
+      }, timeout)
+      this.pending.set(id, { method, resolve: resolveSend, reject, timer })
       this.socket.send(JSON.stringify({ id, method, params }))
     })
   }
@@ -73,6 +78,7 @@ class Cdp {
 
 const cdp = new Cdp(target.webSocketDebuggerUrl)
 await cdp.open()
+console.log(`[dsh-story-v2] connected to ${target.url}`)
 await Promise.all([
   cdp.send('Runtime.enable'),
   cdp.send('Page.enable'),
@@ -89,6 +95,7 @@ const report = {
   chapters: [],
   decisions: [],
   portraits: {},
+  backgrounds: {},
   errors: [],
   gameTurnCalls: 0,
 }
@@ -108,21 +115,26 @@ async function waitFor(predicate, args = [], timeout = 30_000, label = 'conditio
 }
 
 async function clickExact(label, rootSelector = null) {
-  const clicked = await cdp.evaluate((text, selector) => {
-    const roots = selector
-      ? [...document.querySelectorAll(selector)].filter(element => element.getClientRects().length > 0)
-      : [document]
-    const root = roots.at(-1)
-    if (!root) return false
-    const element = [...root.querySelectorAll('button,[role="tab"],[role="treeitem"]')]
-      .find(candidate => {
-        const label = candidate.getAttribute('aria-label') || candidate.textContent.trim() || candidate.getAttribute('title') || ''
-        return candidate.getClientRects().length > 0 && label === text
-      })
-    if (!element) return false
-    element.click()
-    return true
-  }, label, rootSelector)
+  let clicked = false
+  const deadline = Date.now() + 10_000
+  while (!clicked && Date.now() < deadline) {
+    clicked = await cdp.evaluate((text, selector) => {
+      const roots = selector
+        ? [...document.querySelectorAll(selector)].filter(element => element.getClientRects().length > 0)
+        : [document]
+      const root = roots.at(-1)
+      if (!root) return false
+      const element = [...root.querySelectorAll('button,[role="tab"],[role="treeitem"]')]
+        .find(candidate => {
+          const label = candidate.getAttribute('aria-label') || candidate.textContent.trim() || candidate.getAttribute('title') || ''
+          return candidate.getClientRects().length > 0 && label === text
+        })
+      if (!element) return false
+      element.click()
+      return true
+    }, label, rootSelector)
+    if (!clicked) await new Promise(resolveRetry => setTimeout(resolveRetry, 100))
+  }
   if (!clicked) {
     const diagnostics = await cdp.evaluate(() => ({
       title: document.title,
@@ -188,16 +200,20 @@ async function storySnapshot() {
 
 async function advanceUi(choiceId = null) {
   const before = (await storySnapshot()).nodeId
-  const clicked = await cdp.evaluate(choice => {
-    const story = document.querySelector('[data-testid="gal-story"]')
-    const button = choice
-      ? story?.querySelector(`button[data-choice-id="${CSS.escape(choice)}"]`)
-      : story?.querySelector('.gg-story-next button')
-    if (!button) return false
-    button.click()
-    return true
-  }, choiceId)
-  assert.ok(clicked, `Story advance control not found at ${before}`)
+  for (let attempt = 0; attempt < (choiceId ? 1 : 20); attempt++) {
+    const clicked = await cdp.evaluate(choice => {
+      const story = document.querySelector('[data-testid="gal-story"]')
+      const button = choice
+        ? story?.querySelector(`button[data-choice-id="${CSS.escape(choice)}"]`)
+        : story?.querySelector('.gg-story-next button')
+      if (!button) return false
+      button.click()
+      return true
+    }, choiceId)
+    assert.ok(clicked, `Story advance control not found at ${before}`)
+    await new Promise(resolveAdvance => setTimeout(resolveAdvance, 100))
+    if ((await storySnapshot()).nodeId !== before) return
+  }
   await waitFor(id => document.querySelector('[data-testid="gal-story"]')?.dataset.nodeId !== id, [before], 30_000, `story advance from ${before}`)
 }
 
@@ -208,6 +224,8 @@ async function layoutAt(width, height) {
     const story = document.querySelector('[data-testid="gal-story"]')
     const name = story.querySelector('.ggd-nameplate span')
     const image = story.querySelector('.gg-character')
+    const stage = story.querySelector('.gg-stage').getBoundingClientRect()
+    const portrait = image.getBoundingClientRect()
     const bounds = story.getBoundingClientRect()
     return {
       width: story.clientWidth,
@@ -217,7 +235,9 @@ async function layoutAt(width, height) {
       viewport: innerWidth,
       nameWidth: name.clientWidth,
       nameScrollWidth: name.scrollWidth,
-      portraitWidth: image.getBoundingClientRect().width,
+      portraitWidth: portrait.width,
+      portraitHeight: portrait.height,
+      stageHeight: stage.height,
       fit: getComputedStyle(image).objectFit,
       speaker: name.textContent,
     }
@@ -246,11 +266,38 @@ async function snapshotCast(key) {
     assert.ok(layout.scrollWidth <= layout.width + 1 && layout.left >= -1 && layout.right <= layout.viewport + 1, `${key} horizontal overflow`)
     assert.ok(layout.nameScrollWidth <= layout.nameWidth + 1, `${key} clipped name`)
     assert.ok(layout.portraitWidth > 80 && layout.fit === 'contain', `${key} portrait layout`)
+    assert.ok(layout.portraitHeight / layout.stageHeight >= .75, `${key} portrait is too small for the visual-novel stage`)
     const shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true })
     await writeFile(resolve(output, `desktop-story-v2-${key}-${viewport.width}.png`), Buffer.from(shot.data, 'base64'))
     sizes.push({ viewport, ...layout })
   }
   report.portraits[key] = { ...data, sizes }
+}
+
+async function snapshotBackground(chapterId) {
+  const data = await cdp.evaluate(() => {
+    const stage = document.querySelector('[data-testid="gal-story"] .gg-stage')
+    const css = stage.style.backgroundImage
+    const source = css.startsWith('url("') ? css.slice(5, -2) : css.startsWith('url(') ? css.slice(4, -1) : ''
+    let hash = 2166136261
+    for (let index = 0; index < source.length; index += 17) {
+      hash ^= source.charCodeAt(index)
+      hash = Math.imul(hash, 16777619)
+    }
+    return {
+      sourceLength: source.length,
+      sourceType: source.slice(0, 32),
+      size: getComputedStyle(stage).backgroundSize,
+      position: getComputedStyle(stage).backgroundPosition,
+      sourceHash: `${source.length}:${(hash >>> 0).toString(16)}`,
+    }
+  })
+  assert.ok(data.sourceLength > 100_000, `${chapterId} background source`)
+  assert.ok(data.sourceType.startsWith('data:image/webp;base64,'), `${chapterId} background format`)
+  assert.equal(data.size, 'cover')
+  report.backgrounds[chapterId] = data
+  const shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true })
+  await writeFile(resolve(output, `desktop-story-v2-background-${chapterId}.png`), Buffer.from(shot.data, 'base64'))
 }
 
 const savedStorage = await cdp.evaluate(() => Object.fromEntries(Object.entries(localStorage)))
@@ -265,10 +312,11 @@ try {
   await openStory()
   await noTyping()
   assert.equal((await storySnapshot()).episodeId, 'bridges')
+  console.log('[dsh-story-v2] story opened')
 
   let state = createStory()
   let turns = 0
-  let testedSave = false
+  let testedSave = false, testedProtocolLayout = false
   const newCast = ['huggingface', 'llama', 'rwkv', 'perplexity', 'github', 'gitlab', 'gitee', 'cloudflare']
   for (; turns < 1024; turns++) {
     const node = currentStoryNode(state)
@@ -280,9 +328,44 @@ try {
     assert.equal(ui.debugCount, 0)
     assert.equal(ui.spoken, node.text)
     assert.deepEqual(ui.choices, (node.choices || []).map(choice => choice.id))
-    if (!report.chapters.includes(node.chapterId)) report.chapters.push(node.chapterId)
+    if (!report.chapters.includes(node.chapterId)) {
+      report.chapters.push(node.chapterId)
+      console.log(`[dsh-story-v2] chapter ${node.chapterId}`)
+      await snapshotBackground(node.chapterId)
+    }
     if (newCast.includes(node.speaker) && !report.portraits[node.speaker]) await snapshotCast(node.speaker)
     if (node.choices) report.decisions.push(node.id)
+
+    if (!testedProtocolLayout && node.id === 'access-clause-04') {
+      const layouts = []
+      for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+        await cdp.send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 1, mobile: viewport.width < 600 })
+        await waitFor(expected => innerWidth === expected, [viewport.width], 10_000, `${viewport.width}px protocol viewport`)
+        const layout = await cdp.evaluate(() => {
+          const story = document.querySelector('[data-testid="gal-story"]')
+          const choices = [...story.querySelectorAll('[data-choice-id]')]
+          const bounds = story.getBoundingClientRect()
+          return {
+            width: story.clientWidth,
+            scrollWidth: story.scrollWidth,
+            left: bounds.left,
+            right: bounds.right,
+            viewport: innerWidth,
+            choices: choices.length,
+            clippedChoices: choices.filter(choice => choice.scrollWidth > choice.clientWidth + 1).length,
+          }
+        })
+        assert.equal(layout.choices, 3)
+        assert.equal(layout.clippedChoices, 0)
+        assert.ok(layout.scrollWidth <= layout.width + 1 && layout.left >= -1 && layout.right <= layout.viewport + 1, 'protocol choices overflow')
+        const shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true })
+        await writeFile(resolve(output, `desktop-story-v2-protocol-choices-${viewport.width}.png`), Buffer.from(shot.data, 'base64'))
+        layouts.push({ viewport, ...layout })
+      }
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
+      report.protocolChoiceLayout = layouts
+      testedProtocolLayout = true
+    }
 
     if (!testedSave && node.chapterId === 'open-day' && node.choices) {
       await clickExact('存档与读档')
@@ -306,10 +389,34 @@ try {
   }
 
   assert.ok(turns < 1024, 'Story route did not terminate')
+  assert.equal(testedProtocolLayout, true)
   report.routeSteps = turns
   report.ending = currentStoryNode(state).ending.id
   assert.equal(Object.keys(report.portraits).length, 8)
   assert.equal(new Set(Object.values(report.portraits).map(item => item.sourceHash)).size, 8)
+  assert.equal(Object.keys(report.backgrounds).length, STORY_CHAPTERS.length)
+  assert.equal(new Set(Object.values(report.backgrounds).map(item => item.sourceHash)).size, STORY_CHAPTERS.length)
+
+  const endingLayout = await cdp.evaluate(() => {
+    const story = document.querySelector('[data-testid="gal-story"]')
+    return {
+      institutionalHeadings: [...story.querySelectorAll('.gg-story-ending>div>h2')].map(item => item.textContent),
+      relationshipCards: story.querySelectorAll('.gg-relationship-epilogues article').length,
+      width: story.clientWidth,
+      scrollWidth: story.scrollWidth,
+    }
+  })
+  assert.equal(endingLayout.institutionalHeadings.length, 1)
+  assert.equal(endingLayout.relationshipCards, 4)
+  assert.ok(endingLayout.scrollWidth <= endingLayout.width + 1)
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 1, mobile: viewport.width < 600 })
+    await waitFor(expected => innerWidth === expected, [viewport.width], 10_000, `${viewport.width}px ending viewport`)
+    const shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true })
+    await writeFile(resolve(output, `desktop-story-v2-ending-${viewport.width}.png`), Buffer.from(shot.data, 'base64'))
+  }
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
+  report.endingCards = endingLayout
 
   await clickExact('对话回顾')
   assert.ok(await cdp.evaluate(() => [...document.querySelectorAll('.gg-panel')].some(panel => panel.getClientRects().length > 0 && panel.textContent.includes('如果路线不对'))))

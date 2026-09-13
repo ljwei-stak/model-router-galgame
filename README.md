@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, PPT generation skills, and approval integration in one npm package, and runs inside an existing DSH host.
 
-**Current release: 0.4.28** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**Current release: 0.4.29** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## Features
 
@@ -29,14 +29,14 @@ Costs and quality scores are routing estimates, not provider bills or guarantees
 
 Open **"GAL视窗 → GAL游戏" (GAL view → GAL game)** in an existing Harness conversation. The game runs inside that view alongside the original conversation and scene editor.
 
-- **Story mode** is an authored Chinese-language galgame that makes no model API calls. The new *Thousand Bridges Protocol* episode offers four playable chapters: Prologue, Hugging Face Association Open Day, Laurel Review, and Thousand Bridges Night. Choices connect open/closed model ecosystems, ChatGPT and Claude's fictional history, and an Agent / Skills / MCP incident. The preserved legacy episode still includes 1,111 nodes, 28 choices, five endings, and five epilogues.
+- **Story mode** is an authored Chinese-language galgame that makes no model API calls. *Thousand Bridges Protocol* now offers eight playable chapters, continuing from its prologue and association crisis through the Three Harbors investigation, Open and Dome hearing, protocol composition, and six institutional outcomes. Choices connect open/closed model ecosystems, ChatGPT and Claude's fictional history, and an Agent / Skills / MCP incident. The preserved legacy episode still includes 1,111 nodes, 28 choices, five endings, and five epilogues.
 - **Free mode** accepts your own typed dialogue and uses a model configured in Harness to generate replies. Interactions can increase or decrease affection and trust, changing the character's responses as the relationship develops. Relationship values, evaluation details, and progression conditions are hidden during normal play; development debug is off by default.
-- Hugging Face, Llama, RWKV, and Perplexity join the story, with GitHub, GitLab, Gitee, and Cloudflare appearing in fixed events. The new cast has bundled portraits and individual colors; the original 14 illustrated frames and DeepSeek expression variants remain available. Backgrounds use blank placeholders with descriptions.
+- Hugging Face, Llama, RWKV, and Perplexity join the story, with GitHub, GitLab, Gitee, and Cloudflare appearing in the Three Harbors investigation and fixed events. The new cast has bundled portraits and individual colors; the original 14 illustrated frames and DeepSeek expression variants remain available. Every chapter has its own wide visual-novel background, and portraits use a larger center-right stage layout behind the dialogue box.
 - Open **"剧目与章节" (Episodes and chapters)** in the story header to switch episodes or try a chapter directly. Each episode has its own autosave and three manual slots, with automatic playback, history, JSON import/export, and restart. Legacy and free-mode saves remain separate. Direct chapter starts do not inherit previous choices; play from the prologue to carry every consequence forward.
 
-See the Chinese [character bible](大模型娘人物设定.md) and [full story outline](GAL_STORY_V2_OUTLINE.zh.md). Version 0.4.28 implements the four-chapter first phase; the investigation, hearings, and full institutional endings are planned for later phases.
+See the Chinese [character bible](大模型娘人物设定.md) and [full story outline](GAL_STORY_V2_OUTLINE.zh.md). Version 0.4.29 completes the eight-chapter second phase.
 
-The new episode contains 249 nodes and 11 choices, with two provisional containment outcomes and closing variations reflecting permissions, disclosure, and the next shift. These conclude the playable first phase, not the full planned story.
+The episode contains 424 nodes and 22 dilemmas. Its replay-derived state tracks five global stance axes, character-specific commitments, and an evidence inventory. Protocol composition reaches six institutional ending classes, while four relationship epilogues are calculated independently.
 
 Story mode does not require provider credentials. Free mode requires a working model connection; the included dialogue artwork and expression assets do not require an image API.
 
@@ -53,11 +53,11 @@ Story mode does not require provider credentials. Free mode requires a working m
 - **PPT Master** is bundled as a native DSH skill. In a normal work conversation, a PowerPoint/PPT/PPTX request can load `ppt-master` through the host's `skill` tool and follow its planning, SVG, validation, and PPTX export workflow.
 - Model Router keeps the host's skill catalog, loaded skill instructions, and file/terminal tools available when it chooses a model or advances a work stage. Use ordinary chat or the GAL conversation view for presentation work; story mode does not run tools, and free-play character dialogue is not the work agent.
 - The package includes the skill, Python scripts, and templates. Python dependencies require the explicit setup below; npm installation does not install Python or run pip. Generated presentations belong in the conversation's writable workspace.
-- Router 0.4.28 bundles PPT Master 6.3.3, which supports the managed Python root and avoids the faulty Windows Bash runner in DSH Desktop 2.0.7. It also includes the PPTX staging-directory permission repair from 6.3.2. Host sandbox and approval settings remain in effect.
+- Router 0.4.29 bundles PPT Master 6.3.3, which supports the managed Python root and avoids the faulty Windows Bash runner in DSH Desktop 2.0.7. It also includes the PPTX staging-directory permission repair from 6.3.2. Host sandbox and approval settings remain in effect.
 
 ### Watcher work paths and model usage
 
-Router 0.4.28 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG), built and tested against the DSH Desktop 2.0.7 SDK.
+Router 0.4.29 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG), built and tested against the DSH Desktop 2.0.7 SDK.
 Open the eye button in the native session header from Chat or the GAL work view
 to inspect turns, parallel tools, retries, timing, and recorded token usage.
 The Watcher settings section summarizes local session usage; provider and model
@@ -80,7 +80,7 @@ Watcher entry, and retaining either standalone entry would duplicate the loader 
 
 "GAL 视窗 → 项目更新" (GAL view → Project updates) checks the plugin's npm version and the official DSH Desktop version separately. It offers "仅更新 npm 插件" (Update only the npm plugin), "仅更新完整客户端" (Update only the full client), and "一键更新插件与客户端" (Update plugin and client). Desktop plugin installation runs through the authenticated host connection. Fully exit and restart DSH Desktop after a successful installation.
 
-A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.28` version and DSH Desktop's version are independent.
+A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.29` version and DSH Desktop's version are independent.
 
 ## Installation
 
@@ -102,7 +102,7 @@ Installing this npm package does not install DSH Desktop, model services, or a b
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.28
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.29
 ```
 
 3. After installation succeeds, use the desktop restart control, or explicitly quit from the system tray and reopen the app. Select the same profile. Closing the window may only hide the application.
@@ -117,7 +117,7 @@ If you do not have a global `dsh` but already have Node.js/npm and pnpm, replace
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.28
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.29
 dsh --profile web --dump-config
 ```
 
@@ -141,9 +141,9 @@ dsh --dump-config
 
 For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all seven plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
 
-| Plugin | Pinned version for 0.4.28 | Purpose |
+| Plugin | Pinned version for 0.4.29 | Purpose |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.28` | Routing, GAL view, story/free modes, and update controls |
+| `@ljwei-stak/model-router-galgame` | `0.4.29` | Routing, GAL view, story/free modes, and update controls |
 | `@liustack/modlens` | `3.25.4` | Image understanding through compatible routes |
 | `@liustack/modsearch` | `5.10.1` | Search and page reading |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | Visible browser tools |
@@ -242,7 +242,7 @@ For example, only after confirming that ModLens is a duplicate standalone depend
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.28
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.29
 ```
 
 For Web / CLI, add `--profile web` after `plugin` in both commands. Handle other duplicate dependencies according to the actual error; do not remove all plugins at once. These removal commands are unnecessary when no duplicate entry exists.

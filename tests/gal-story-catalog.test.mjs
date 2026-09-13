@@ -56,9 +56,9 @@ test('corrupt new saves are preserved and cannot cause replacement of legacy dat
   assert.equal(readStorySlots(storage, newKey, 'bridges')[1].state.version, 2)
 })
 
-test('catalog dispatches all four chapter starts and validates imported versions', () => {
+test('catalog dispatches all eight chapter starts and validates imported versions', () => {
   const episode = STORY_EPISODES.find(item => item.id === 'bridges')
-  assert.equal(episode.chapters.length, 4)
+  assert.equal(episode.chapters.length, 8)
   for (const chapter of episode.chapters) {
     const state = createStory('bridges', { chapterId: chapter.id })
     assert.equal(currentStoryNode(state).id, chapter.startNodeId)
