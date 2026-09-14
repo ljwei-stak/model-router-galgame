@@ -24,7 +24,7 @@ import {
   extOf, embedFonts, extractFonts, createIdbFonts,
 } from './fonts.mjs'
 import { createObservable, createHistory, createStorage, loadJSON, saveJSON } from './store.mjs'
-import { catalogSnapshot, selectModelThroughRemote } from './model-directory-bridge.mjs'
+import { catalogRoutes, catalogSnapshot, selectModelThroughRemote } from './model-directory-bridge.mjs'
 import { createAttachmentApi } from './attachment-bridge.mjs'
 import { DEFAULT_ROUTER_SETTINGS, MODEL_CATALOG, MODEL_ROUTER_SETTINGS_NAMESPACE } from '../shared/router.mjs'
 import { createUpdateApi as createNpmUpdateApi } from './update-api.mjs'
@@ -587,10 +587,7 @@ export function apply(ctx) {
         // shared catalog is loading. Retain the last good catalog during that
         // window so an adapter refresh cannot make the picker flash empty.
         const groups = loadedGroups.length > 0 ? loadedGroups : (previous.groups ?? [])
-        const fromGroups = []
-        for (const group of groups) {
-          for (const model of group.models ?? []) fromGroups.push({ provider: group.id, model: model.id })
-        }
+        const fromGroups = catalogRoutes(groups)
         const available = fromGroups.length > 0 ? fromGroups : (previous.available ?? [])
         const rawStatus = state.status ?? 'loading'
         const status = rawStatus === 'idle' && groups.length === 0 && available.length === 0 ? 'loading' : rawStatus

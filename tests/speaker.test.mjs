@@ -40,6 +40,13 @@ test('route extraction falls back to provenance when requestConfig is incomplete
   )
 })
 
+test('route extraction retains the exact reasoning effort used by the request', () => {
+  assert.deepEqual(
+    routeFromNode({ requestConfig: { provider: 'zen', model: 'GPT 5.6 Sol', reasoningEffort: 'xhigh' } }),
+    { provider: 'zen', model: 'GPT 5.6 Sol', reasoningEffort: 'xhigh' },
+  )
+})
+
 test('persona context is hidden from the player transcript', () => {
   const line = lineFromNode({
     kind: 'user',

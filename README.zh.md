@@ -4,7 +4,7 @@
 
 适用于 DeepSeek Harness / DSH Desktop 的模型路由与 GAL 对话插件。它把任务分配、费用估算、模型角色对话、联网工具、PPT 生成技能和审批适配整合为一个 npm 插件包，需要在已有的 DSH 宿主中使用。
 
-**当前发布版本：0.4.31** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**当前发布版本：0.4.32** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## 功能介绍
 
@@ -12,7 +12,7 @@
 
 - **集体合作**：默认模式。根据任务复杂度、业务方向和依赖关系生成工作包，为执行、验证和最终整合选择可用模型。复杂任务按阶段执行，保留各阶段的模型和分配记录。
 - **单独会话**：使用 Harness 原生模型选择器中指定的模型，集体路由不覆盖你的选择。
-- **质量与预算约束**：结合模型专长、LiveBench 分类分数、输入/输出价格、缓存价格及延迟估计进行分配；使用 Pareto 剪枝和有界 Beam Search，展示预算是否可行、约束是否放宽及回退结果。
+- **质量、推理与预算约束**：结合适配器公布的精确推理等级、模型专长、LiveBench 分类分数、输入/输出价格、缓存价格及延迟估计进行分配；使用 Pareto 剪枝和有界 Beam Search，展示预算是否可行、约束是否放宽及回退结果。
 - **价格可编辑**：在“GAL 视窗”设置中的“模型费用与路由预算”填写 USD / 1M tokens 价格、单任务预算和缓存比例，也可用 `provider/model` 设置不同渠道的价格。默认缓存比例为 0。
 - **可检查的费用摘要**：查看逐阶段费用估算、预计节省、质量下限和实际使用的模型。LiveBench 刷新失败时保留上次快照；没有快照时明确标记使用实验基线。
 
@@ -36,7 +36,7 @@
 - **无障碍与操作**：首页提供继续、序章、角色支线、章节和无障碍入口。可设置音乐音量、声音字幕、减少动态、高对比度、大号文字和易读字体，并支持 Enter/Space、数字键、M、H、S、Esc 键盘操作与屏幕阅读器播报。
 - **游玩与存档**：从 Galgame 首页或剧情顶部的 **“剧目与章节”** 切换新旧剧目、八章主线和角色支线。新旧剧目各有独立自动存档和三个手动槽，支持自动播放、历史回看、JSON 导入/导出；旧篇和自由模式存档均可继续使用。
 
-角色动机与关系见 [《大模型娘人物设定集（剧情重构版）》](大模型娘人物设定.md)，完整规划见 [《千桥协议》剧情重构大纲](GAL_STORY_V2_OUTLINE.zh.md)。0.4.31 为 22 位角色补齐独立对话框，并修正 DeepSeek 透明差分、Claude 立绘语义和主题配乐节奏。
+角色动机与关系见 [《大模型娘人物设定集（剧情重构版）》](大模型娘人物设定.md)，完整规划见 [《千桥协议》剧情重构大纲](GAL_STORY_V2_OUTLINE.zh.md)。0.4.32 保留第三阶段完整 GAL 演出，并修复集体对话路由：每个工作包会取得目标模型确实支持的推理等级，切换模型时删除遗留等级，提供方或流协议局部故障会自动换路并进入会话冷却。
 
 《千桥协议》含 666 个节点、44 处两难选择。状态由开放、安全、自主、证据与团结五条全局立场轴、33 项角色承诺和 42 项证据共同组成；存档读取时按选择轨迹重放。协议组合可到达六类制度结局，关系尾声与 44 种支线收束均独立计算。
 
@@ -48,18 +48,18 @@
 - **Ego Browser**：为需要 JavaScript、登录态或页面交互的任务提供可见浏览器工具。路由器向模型提供搜索失败后切换浏览器的指导；验证码和人机验证交由用户完成。
 - **审批适配**：在多任务沙箱升级请求中附加工作包、阶段、模型和任务数量。审批决定、人工确认、审计与学习由 `@ljwei-stak/dsh-approval-gate` 和宿主权限策略负责，安装路由器不等于开启自动批准。
 - **OpenCode Zen 兼容**：修复误填成官方网页地址的 OpenCode 端点覆盖，保留自定义网关。
-- **DSH 2.0.7 兼容**：路由、Persona 与联网指令只使用宿主支持的插件消息来源类型，并声明 GAL 与更新 RPC 注册所需的 `webServer` 服务。
+- **DSH Desktop 2.0.10 兼容**：路由、Persona 与联网指令只使用宿主支持的插件消息来源类型，并声明 GAL 与更新 RPC 注册所需的 `webServer` 服务。
 
 ### PPT Master 演示文稿生成
 
 - **PPT Master** 以 DSH 原生 skill 随包加载。在普通工作会话中收到 PowerPoint/PPT/PPTX 需求后，模型可通过宿主 `skill` 工具加载 `ppt-master`，按规划、SVG 制作、检查和 PPTX 导出的流程执行。
 - Model Router 在选择模型和推进工作阶段时保留宿主技能目录、已加载的技能指令及文件/终端工具。制作 PPT 应使用普通聊天或 GAL 工作会话；剧情模式不调用工具，自由模式的角色对话也不是工作代理。
 - 包内包含技能、Python 脚本和模板。Python 依赖需按下方步骤主动安装，npm 安装不会自动安装 Python 或运行 pip。生成的演示文稿保存在会话可写工作目录中。
-- Router 0.4.31 随包加载 PPT Master 6.3.3，支持受管 Python 根目录，并避开 DSH Desktop 2.0.7 中有故障的 Windows Bash 运行器；同时保留 6.3.2 的 PPTX 临时目录权限修复。宿主沙箱和审批设置仍然生效。
+- Router 0.4.32 随包加载 PPT Master 6.3.3，支持受管 Python 根目录，并避开 DSH Desktop 2.0.7 中有故障的 Windows Bash 运行器；同时保留 6.3.2 的 PPTX 临时目录权限修复。宿主沙箱和审批设置仍然生效。
 
 ### Watcher 工作路径与模型用量
 
-Router 0.4.31 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)，并使用 DSH Desktop 2.0.7 SDK 构建和测试。
+Router 0.4.32 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)，使用 DSH 0.1.5 SDK 构建，并在 DSH Desktop 2.0.10 中测试。
 在普通对话或 GAL 工作视图中，点击原生会话标题栏的眼睛按钮，可查看轮次、并行工具、
 重试、耗时和已记录的 token 用量。设置中的 Watcher 页面汇总本地会话用量；Router
 切换模型时按供应商和模型分别统计。推理记录只显示供应商已写入会话的内容。
@@ -78,7 +78,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 “GAL 视窗 → 项目更新”分别检查插件 npm 版本和官方 DSH Desktop 版本。支持“仅更新 npm 插件”“仅更新完整客户端”和“一键更新插件与客户端”。桌面端插件安装通过已认证的宿主连接执行，成功后需要完全退出并重启 DSH Desktop。
 
-普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.31` 与 DSH Desktop 的版本号相互独立。
+普通浏览器中的页面可以查询插件版本、打开下载页面，但不能直接安装桌面端或修改其 profile。插件的 `0.4.32` 与 DSH Desktop 的版本号相互独立。
 
 ## 安装
 
@@ -86,8 +86,8 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 | 环境 | 要求与安装入口 |
 | --- | --- |
-| 已安装 DSH Desktop | 已验证 DSH Desktop 2.0.7。Windows / macOS 使用设置页的“打开 DSH 终端”；没有该入口时按下方 CLI 方式指定实际 profile。 |
-| Harness Web / CLI | 已验证 `@deepseek-ai/dsh@0.1.5-rc.1`，即 DSH Desktop 2.0.7 使用的 SDK。需要可用的 `dsh` 与 `pnpm`，使用明确的 `--profile`。 |
+| 已安装 DSH Desktop | 已验证 DSH Desktop 2.0.10。Windows / macOS 使用设置页的“打开 DSH 终端”；没有该入口时按下方 CLI 方式指定实际 profile。 |
+| Harness Web / CLI | 已验证 `@deepseek-ai/dsh@0.1.5-rc.1`。需要可用的 `dsh` 与 `pnpm`，使用明确的 `--profile`。 |
 | Node.js | 插件声明 `>=22.19`；上述官方 CLI 要求 `^22.19.0` 或 `>=24.0.0`，建议 Node.js 24。桌面端优先使用其内置运行时。 |
 | 模型与网络 | 路由、AI 对话与自由模式至少需要一个可用的模型 provider；剧情模式不需要模型 API。安装时能访问 `https://registry.npmjs.org/`。 |
 
@@ -100,7 +100,7 @@ Router 最近使用的路由。Watcher 不修改模型路由、提示词、工�
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.32
 ```
 
 3. 安装成功后，使用桌面端的重启入口，或从托盘明确退出后重新打开，仍选择刚才的 profile。仅关闭窗口可能只是隐藏应用。
@@ -115,7 +115,7 @@ dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/m
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.32
 dsh --profile web --dump-config
 ```
 
@@ -139,9 +139,9 @@ dsh --dump-config
 
 Web / CLI 使用 `dsh --profile web --dump-config`。组合后的配置应包含以下七个插件，且没有重复 loader ID。配置导出不能替代实际启动验证；只需安装 Router 聚合包，依赖和 bundle 条目会自动加入。
 
-| 插件 | 0.4.31 固定依赖版本 | 用途 |
+| 插件 | 0.4.32 固定依赖版本 | 用途 |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.31` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
+| `@ljwei-stak/model-router-galgame` | `0.4.32` | 路由、GAL 视窗、剧情/自由模式和更新入口 |
 | `@liustack/modlens` | `3.25.4` | 兼容路由的图片理解 |
 | `@liustack/modsearch` | `5.10.1` | 搜索与页面读取 |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | 可见浏览器工具 |
@@ -240,7 +240,7 @@ Web / CLI 使用 `dsh plugin --profile web remove @ljwei-stak/model-router-galga
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.32
 ```
 
 Web / CLI 在两条命令的 `plugin` 后加 `--profile web`。其他重复依赖按实际报错处理，不要一次删除全部插件。没有重复条目时不需要执行这些移除命令。
@@ -355,8 +355,8 @@ $C_{\mathrm{norm}}=1-p_{\mathrm{effective}}/p_{\max}$，因此
 
 $$
 \begin{aligned}
-U(i,m)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m)+w_l(c)(1-L(m))\\
-&+w_s(c)S(i,m)-w_r(c)R(m)\\
+U(i,m,e)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m,e)+w_l(c)(1-L(m,e))\\
+&+w_s(c)S(i,m)+w_e(c)E(i,m,e)-w_r(c)R(m)\\
 &-\lambda\,\mathbb{1}[m\text{ 已经使用}]
 -\kappa\max(0,F(i)-Q(i,m))\\
 &+\mathrm{synthesis\_bonus}(i,m)
@@ -365,13 +365,13 @@ $$
 
 默认权重为：
 
-| 复杂度 | 质量 | 成本 | 延迟 | 专长 | 风险 |
-|---|---:|---:|---:|---:|---:|
-| simple | 0.30 | 0.50 | 0.14 | 0.04 | 0.02 |
-| balanced | 0.45 | 0.30 | 0.10 | 0.10 | 0.05 |
-| complex | 0.55 | 0.16 | 0.06 | 0.16 | 0.07 |
+| 复杂度 | 质量 | 成本 | 延迟 | 专长 | 推理等级 | 风险 |
+|---|---:|---:|---:|---:|---:|---:|
+| simple | 0.28 | 0.45 | 0.14 | 0.04 | 0.07 | 0.02 |
+| balanced | 0.40 | 0.26 | 0.10 | 0.09 | 0.10 | 0.05 |
+| complex | 0.48 | 0.14 | 0.06 | 0.14 | 0.11 | 0.07 |
 
-synthesis 使用质量优先的 `0.70/0.10/0.04/0.10/0.06` 权重；存在 DeepSeek V4 Pro
+synthesis 使用质量与推理优先的 `0.58/0.08/0.04/0.08/0.16/0.06` 权重；存在 DeepSeek V4 Pro
 时只增加一个小的确定性偏好项，并非硬编码强制选择，不可用时仍按可行候选排序回退。
 重复使用同一路由扣除 `0.08` 效用；依赖边跨越不同模型时，在全局分配中每条边扣除
 `0.015`，用于抑制不必要的上下文交接。
@@ -388,15 +388,15 @@ synthesis 使用质量优先的 `0.70/0.10/0.04/0.10/0.06` 权重；存在 DeepS
 
 #### 5.2 Pareto 剪枝
 
-对于同一个工作包，候选 `a` 支配候选 `b` 的条件是：五个维度全部不差，且至少一个维度
+对于同一个工作包，候选 `a` 支配候选 `b` 的条件是：六个维度全部不差，且至少一个维度
 严格更好：
 
 $$
 Q(a)\ge Q(b),\quad \mathrm{Cost}(a)\le\mathrm{Cost}(b),\quad L(a)\le L(b),\quad
-S(a)\ge S(b),\quad R(a)\le R(b)
+S(a)\ge S(b),\quad E(a)\ge E(b),\quad R(a)\le R(b)
 $$
 
-被支配的模型不可能同时改善质量、费用、延迟、专长或风险，因此可以安全删除。系统保留
+被支配的模型不可能同时改善质量、费用、延迟、专长、推理匹配或风险，因此可以安全删除。系统保留
 Pareto 前沿，并额外保留三个锚点：最低费用、最高综合效用和最高质量候选；每个工作包
 最终至多保留 12 条路由。
 

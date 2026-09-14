@@ -92,7 +92,7 @@ function routeFromNodes(nodes) {
     if (node?.kind !== 'assistant') continue
     if (Number(node.seq ?? -Infinity) <= latestUserSeq) continue
     const route = routeFromNode(node)
-    if (route?.provider && route?.model) return { provider: route.provider, model: route.model }
+    if (route?.provider && route?.model) return route
   }
   return null
 }
@@ -137,11 +137,11 @@ function needsWholeMarkdown(text) {
 }
 
 function RouterPanel({ plan, route, displayRoute, onMode, routerMode, routerSnapshot, routerActions }) {
-  const weights = plan?.objectiveWeights ?? { quality: 0, cost: 0, latency: 0, risk: 0 }
+  const weights = plan?.objectiveWeights ?? { quality: 0, cost: 0, reasoning: 0, latency: 0, risk: 0 }
   const selected = route ?? plan?.selected
   const modeLabel = routerMode === 'single' ? '单独会话' : '集体合作'
   const modeDetail = routerMode === 'single'
-    ? (selected?.model ? `固定：${selected.model}` : '等待选择模型')
+    ? (selected?.model ? `固定：${selected.model}${selected.reasoningEffort ? ` · ${selected.reasoningEffort}` : ''}` : '等待选择模型')
     : '按任务复杂度自动分配'
   return (
     <section className="gv-router-panel" aria-label="智能分配方案">
@@ -161,6 +161,7 @@ function RouterPanel({ plan, route, displayRoute, onMode, routerMode, routerSnap
             <span>复杂度 <b>{plan ? `${Math.round((plan.complexity?.value ?? 0) * 100)}%` : '分析中'}</b></span>
             <span>任务类型 <b>{plan?.taskType ?? '待提问'}</b></span>
             <span>当前模型 <b>{selected?.model ?? '等待路由'}</b></span>
+            <span>推理等级 <b>{selected?.reasoningEffort ?? '提供方默认'}</b></span>
             <span>预估费用 <b>{plan ? `$${Number(plan.estimatedCost ?? 0).toFixed(4)}` : '—'}</b></span>
           </div>
           {plan && routerMode === 'collective' && (
@@ -168,20 +169,21 @@ function RouterPanel({ plan, route, displayRoute, onMode, routerMode, routerSnap
               <div className="gv-router-weights" aria-label="目标权重">
                 <span>质量 {Math.round(weights.quality * 100)}%</span>
                 <span>成本 {Math.round(weights.cost * 100)}%</span>
+                <span>推理 {Math.round((weights.reasoning ?? 0) * 100)}%</span>
                 <span>延迟 {Math.round(weights.latency * 100)}%</span>
                 <span>风险 {Math.round(weights.risk * 100)}%</span>
               </div>
               <div className="gv-router-reason">{plan.reason}</div>
               <div className="gv-router-candidates">
                 {(plan.candidates ?? []).slice(0, 4).map(candidate => (
-                  <span key={`${candidate.provider}/${candidate.model}`} title={`综合 ${candidate.score}，专长 ${candidate.specialty}`}>
-                    {candidate.model} · {Math.round(candidate.score * 100)}%
+                  <span key={`${candidate.provider}/${candidate.model}`} title={`综合 ${candidate.score}，专长 ${candidate.specialty}，推理匹配 ${candidate.reasoningFit}`}>
+                    {candidate.model} · {candidate.reasoningEffort || '默认'} · {Math.round(candidate.score * 100)}%
                   </span>
                 ))}
               </div>
             </>
           )}
-          {routerMode === 'single' && selected && <div className="gv-router-single-note">后续请求固定交给 <b>{selected.provider}/{selected.model}</b>，集体路由不会改写单独会话。</div>}
+          {routerMode === 'single' && selected && <div className="gv-router-single-note">后续请求固定交给 <b>{selected.provider}/{selected.model}</b>，推理等级为 <b>{selected.reasoningEffort || '提供方默认'}</b>，集体路由不会改写单独会话。</div>}
         </div>
       </details>
     </section>
@@ -579,7 +581,7 @@ export function GalView({ sessionId, useSession, useSessions, useConversation, u
   const actualRoute = useMemo(() => routeFromNodes(nodes), [nodes])
   const manualRoute = useMemo(() => {
     const current = routerSnapshot?.current
-    if (current?.provider && current?.model) return { provider: current.provider, model: current.model }
+    if (current?.provider && current?.model) return { provider: current.provider, model: current.model, ...(current.reasoningEffort === undefined ? {} : { reasoningEffort: current.reasoningEffort }) }
     return null
   }, [routerSnapshot?.current])
   const routeCatalog = useMemo(() => {

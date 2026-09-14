@@ -8,6 +8,8 @@ import {
   detectTaskTypes,
   isOfficialOpenCodeEndpoint,
   modelMetadata,
+  OBJECTIVE_WEIGHTS,
+  selectReasoningEffort,
 } from '../.dsh-plugin/shared/router.mjs'
 import { fetchLiveBenchSnapshot, normalizeLiveBenchPayload, parseCsv } from '../.dsh-plugin/shared/livebench.mjs'
 
@@ -37,6 +39,50 @@ test('scores available routes and returns a cost estimate', () => {
   assert.equal(modelMetadata('GPT 5.6 Sol').id, 'gpt-5.6-sol')
   assert.ok(plan.optimization.qualityFloor >= 0.78)
   assert.ok(Number.isFinite(plan.optimization.estimatedSavings))
+})
+
+test('reasoning level is a normalized optimization objective', () => {
+  for (const weights of Object.values(OBJECTIVE_WEIGHTS)) {
+    assert.ok(Math.abs(Object.values(weights).reduce((sum, value) => sum + value, 0) - 1) < 1e-12)
+  }
+  assert.equal(selectReasoningEffort(['minimal', 'medium', 'xhigh'], 'high'), 'medium')
+  assert.equal(selectReasoningEffort([{ id: 'low' }, { id: 'max' }], 'xhigh'), 'max')
+  assert.equal(selectReasoningEffort([], 'high'), undefined)
+})
+
+test('plans an exact supported reasoning effort for every collaboration stage', () => {
+  const available = routes.map(route => ({
+    ...route,
+    reasoningKnown: true,
+    reasoningEfforts: route.model === 'Qwen3.7 Plus' ? ['low', 'medium'] : ['low', 'medium', 'high', 'xhigh'],
+    defaultReasoningEffort: 'medium',
+  }))
+  const plan = buildPlan({
+    text: '请设计一个复杂工程架构，拆分模块，编写代码和测试，并给出部署方案与最终验证。',
+    available,
+  })
+  assert.equal(plan.complexity.band, 'complex')
+  assert.ok(plan.subtasks.length >= 4)
+  for (const task of plan.subtasks) {
+    const route = available.find(item => item.provider === task.recommendedProvider && item.model === task.recommended)
+    assert.ok(route)
+    assert.ok(route.reasoningEfforts.includes(task.recommendedReasoningEffort))
+    assert.ok(task.reasoningFit > 0)
+  }
+  assert.equal(plan.subtasks[0].preferredReasoningEffort, 'high')
+  assert.equal(plan.subtasks.at(-1).preferredReasoningEffort, 'xhigh')
+  assert.equal(plan.synthesizer.reasoningEffort, plan.subtasks.at(-1).recommendedReasoningEffort)
+  assert.ok(plan.costBreakdown.every(row => row.reasoningOutputMultiplier >= 0.9))
+})
+
+test('omits stale reasoning for a route that confirms no selectable efforts', () => {
+  const plan = buildPlan({
+    text: '请简要解释缓存',
+    available: [{ provider: 'plain', model: 'Plain Model', reasoningKnown: true, reasoningEfforts: [] }],
+  })
+  assert.equal(plan.selected.reasoningEffort, undefined)
+  assert.equal(plan.subtasks[0].recommendedReasoningEffort, undefined)
+  assert.equal(plan.costBreakdown[0].reasoningEffort, undefined)
 })
 
 test('splits a mixed complex request into separate business directions', () => {

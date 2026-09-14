@@ -1,14 +1,27 @@
+/** Flatten exact Host model capabilities without inventing effort ids. */
+export function catalogRoutes(groups) {
+  const flattened = []
+  for (const group of Array.isArray(groups) ? groups : []) {
+    for (const model of group.models ?? []) {
+      const reasoning = model.reasoning
+      flattened.push({
+        provider: group.id,
+        model: model.id,
+        reasoningKnown: true,
+        reasoningEfforts: Array.isArray(reasoning?.efforts) ? reasoning.efforts.map(effort => effort.id) : [],
+        ...(reasoning?.defaultEffort === undefined ? {} : { defaultReasoningEffort: reasoning.defaultEffort }),
+      })
+    }
+  }
+  return flattened
+}
+
 /** Flatten the Host model catalog into the GAL view's compact router state. */
 export function catalogSnapshot(catalog, previous = {}) {
   const value = catalog ?? {}
   const loadedGroups = Array.isArray(value.groups) ? value.groups : []
   const groups = loadedGroups.length > 0 ? loadedGroups : (previous.groups ?? [])
-  const flattened = []
-  for (const group of groups) {
-    for (const model of group.models ?? []) {
-      flattened.push({ provider: group.id, model: model.id })
-    }
-  }
+  const flattened = catalogRoutes(groups)
   return {
     available: flattened.length > 0 ? flattened : (previous.available ?? []),
     groups,

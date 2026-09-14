@@ -6,6 +6,7 @@ import {
   DEFAULT_ROUTER_SETTINGS,
   MODEL_ROUTER_SETTINGS_NAMESPACE,
   nextCollaborationStage,
+  selectReasoningEffort,
   textFromMessages,
 } from './shared/router.mjs'
 import { formatErrorChain } from './shared/error-diagnostics.mjs'
@@ -116,6 +117,7 @@ function stateFor(agent) {
       directoryPromise: null,
       turn: null,
       failedModels: new Set(),
+      routeCooldowns: new Map(),
       lastTarget: null,
       lastStep: 0,
       collaboration: null,
@@ -158,14 +160,29 @@ async function discover(ctx, state) {
       }
       try {
         const models = await ctx.llm.listModels(provider.id)
-        for (const model of models) {
-          const inputModalities = model.inputModalities ?? model.input ?? []
-          routes.push({
+        const resolvedRoutes = await Promise.all(models.map(async model => {
+          let resolved
+          try {
+            resolved = typeof ctx.llm.resolveModelInfo === 'function'
+              ? await ctx.llm.resolveModelInfo(provider.id, model.id)
+              : undefined
+          } catch (error) {
+            ctx.logger?.debug?.(`model-router: reasoning metadata unavailable for ${provider.id}/${model.id}: ${String(error)}`)
+          }
+          const inputModalities = resolved?.inputModalities ?? model.inputModalities ?? model.input ?? []
+          const reasoning = resolved?.reasoning
+          return {
             provider: provider.id,
             model: model.id,
             inputModalities: Array.isArray(inputModalities) ? [...inputModalities] : [],
-          })
-        }
+            ...(resolved === undefined ? {} : {
+              reasoningKnown: true,
+              reasoningEfforts: Array.isArray(reasoning?.efforts) ? reasoning.efforts.map(effort => effort.id) : [],
+              ...(reasoning?.defaultEffort === undefined ? {} : { defaultReasoningEffort: reasoning.defaultEffort }),
+            }),
+          }
+        }))
+        routes.push(...resolvedRoutes)
       } catch (error) {
         ctx.logger?.debug?.(`model-router: model discovery failed for ${provider.id}: ${String(error)}`)
       }
@@ -290,8 +307,8 @@ function analysisMessage(plan) {
     '[Model Router 路由分析]',
     `任务类型：${plan.taskType}；复杂度：${plan.complexity?.band ?? 'unknown'}（${Math.round((plan.complexity?.value ?? 0) * 100)}%）`,
     Array.isArray(plan.taskTypes) && plan.taskTypes.length > 1 ? `业务方向：${plan.taskTypes.join('、')}（分别建立执行工作包）` : '',
-    `本轮权重：质量 ${Math.round((weights.quality ?? 0) * 100)}%，成本 ${Math.round((weights.cost ?? 0) * 100)}%，延迟 ${Math.round((weights.latency ?? 0) * 100)}%，专长 ${Math.round((weights.specialty ?? 0) * 100)}%，风险 ${Math.round((weights.risk ?? 0) * 100)}%`,
-    `质量下限：${Math.round(Number(plan.optimization?.qualityFloor ?? 0) * 100)}%；首选路由：${selected}`,
+    `本轮权重：质量 ${Math.round((weights.quality ?? 0) * 100)}%，成本 ${Math.round((weights.cost ?? 0) * 100)}%，推理等级 ${Math.round((weights.reasoning ?? 0) * 100)}%，延迟 ${Math.round((weights.latency ?? 0) * 100)}%，专长 ${Math.round((weights.specialty ?? 0) * 100)}%，风险 ${Math.round((weights.risk ?? 0) * 100)}%`,
+    `质量下限：${Math.round(Number(plan.optimization?.qualityFloor ?? 0) * 100)}%；首选路由：${selected}${plan.selected?.reasoningEffort ? `；推理等级：${plan.selected.reasoningEffort}` : '；推理等级：提供方默认'}`,
     `预计总费用：$${Number(plan.estimatedCost ?? 0).toFixed(6)}；相对全高质量基线节省：$${Number((plan.optimization?.baselineAllStrongCost ?? 0) - (plan.estimatedCost ?? 0)).toFixed(6)}`,
     `缓存计费比例：读取 ${Math.round(Number(plan.optimization?.cacheReadRatio ?? 0) * 100)}%，写入 ${Math.round(Number(plan.optimization?.cacheWriteRatio ?? 0) * 100)}%（未填写时按普通输入计费）`,
     Number(plan.optimization?.budgetUsd ?? 0) > 0 ? `预算上限：$${Number(plan.optimization.budgetUsd).toFixed(6)}；${plan.optimization.budgetExceeded ? '仍超预算，已在质量下限内尽量压缩' : '满足预算约束'}` : '',
@@ -327,17 +344,43 @@ function routeKey(provider, model) {
 }
 
 function modelFallbackError(failure) {
-  const text = `${String(failure?.code ?? '')} ${String(failure?.message ?? '')}`.toLowerCase()
-  return /region|not available|not supported|freeusagelimit|rate limit|too many requests|\b(?:403|404|429)\b/.test(text)
+  const text = `${String(failure?.code ?? '')} ${String(failure?.message ?? '')} ${formatErrorChain(failure)}`.toLowerCase()
+  return /unsupported[_ -]reasoning[_ -]effort|no[_ -]adapter|invalid[_ -]model|invalid[_ -]credential|missing[_ -]credential|auth(?:entication|orization)?|api key|quota|region|not available|not supported|unsupported provider stream event|provider protocol|invalid (?:stream|event)|codex\.rate_limits|freeusagelimit|rate limit|too many requests|\b(?:401|403|404|429)\b/.test(text)
 }
 
-function nextAvailableTarget(state) {
+function failureCooldownMs(failure) {
+  const text = `${String(failure?.code ?? '')} ${String(failure?.message ?? '')} ${formatErrorChain(failure)}`.toLowerCase()
+  const requested = Number(failure?.retryAfterMs)
+  if (Number.isFinite(requested) && requested > 0) return Math.min(Math.max(requested, 30000), 30 * 60 * 1000)
+  if (/auth|api key|credential|\b401\b/.test(text)) return 30 * 60 * 1000
+  if (/unsupported provider stream event|provider protocol|codex\.rate_limits/.test(text)) return 10 * 60 * 1000
+  return 2 * 60 * 1000
+}
+
+function routeTemporarilyUnavailable(state, key) {
+  if (state.failedModels.has(key)) return true
+  const deadline = Number(state.routeCooldowns.get(key) ?? 0)
+  if (deadline <= Date.now()) {
+    state.routeCooldowns.delete(key)
+    return false
+  }
+  return true
+}
+
+function nextAvailableTarget(state, step = state.lastStep) {
   const candidates = Array.isArray(state.plan?.candidates) ? state.plan.candidates : []
+  const assignment = state.plan?.subtasks?.[Math.max(0, Number(step || 1) - 1)]
+  const preferredEffort = assignment?.preferredReasoningEffort ?? assignment?.recommendedReasoningEffort ?? 'medium'
   for (const candidate of candidates) {
     const key = routeKey(candidate.provider, candidate.model)
-    if (state.failedModels.has(key)) continue
+    if (routeTemporarilyUnavailable(state, key)) continue
     const route = state.available.find(entry => entry.provider === candidate.provider && entry.model === candidate.model)
-    if (route !== undefined) return route
+    if (route !== undefined) {
+      return {
+        ...route,
+        reasoningEffort: selectReasoningEffort(route.reasoningEfforts, preferredEffort),
+      }
+    }
   }
   return null
 }
@@ -542,6 +585,7 @@ export function apply(ctx) {
   ctx.on('llm/adapters-updated', () => {
     for (const state of allStates) {
       state.directoryPromise = null
+      state.routeCooldowns.clear()
     }
     void scheduleOpenCodeRepair()
   })
@@ -593,9 +637,11 @@ export function apply(ctx) {
       await routerSettingsPromise
       state.taskText = inputText(messages)
       const liveBench = await liveBenchFor(ctx, state)
+      const readyRoutes = available.filter(route => !routeTemporarilyUnavailable(state, routeKey(route.provider, route.model)))
+      const routable = readyRoutes.length > 0 ? readyRoutes : available
       const plan = buildPlan({
         text: state.taskText,
-        available,
+        available: routable,
         mode: state.mode,
         pricing: routerSettings.pricing,
         liveBench,
@@ -614,7 +660,7 @@ export function apply(ctx) {
           failSafe: true,
         },
       }
-      state.collaboration = shouldCollaborate(state.plan, available)
+      state.collaboration = shouldCollaborate(state.plan, routable)
         ? { lastStep: 0, queuedStep: null }
         : null
     }
@@ -656,7 +702,7 @@ export function apply(ctx) {
       const assignedRoute = state.available.find(route => route.provider === assignment?.recommendedProvider && route.model === assignment?.recommended)
         ?? state.available.find(route => route.model === assignment?.recommended)
       if (assignedRoute !== undefined) {
-        target = { provider: assignedRoute.provider, model: assignedRoute.model, estimatedCost: target.estimatedCost }
+        target = { provider: assignedRoute.provider, model: assignedRoute.model, reasoningEffort: assignment?.recommendedReasoningEffort, estimatedCost: target.estimatedCost }
       }
       // The final subtask is the public answer synthesis. Prefer the user's
       // requested DeepSeek V4 Pro when it is actually available; otherwise the
@@ -665,14 +711,14 @@ export function apply(ctx) {
       if (assignment?.purpose === 'synthesis' && synthesis?.provider && synthesis?.model) {
         const synthesisRoute = state.available.find(route => route.provider === synthesis.provider && route.model === synthesis.model)
         if (synthesisRoute !== undefined) {
-          target = { provider: synthesisRoute.provider, model: synthesisRoute.model, estimatedCost: target.estimatedCost }
+          target = { provider: synthesisRoute.provider, model: synthesisRoute.model, reasoningEffort: synthesis.reasoningEffort, estimatedCost: target.estimatedCost }
         }
       }
     }
-    if (state.failedModels.has(routeKey(target.provider, target.model))) {
-      const fallback = nextAvailableTarget(state)
+    if (routeTemporarilyUnavailable(state, routeKey(target.provider, target.model))) {
+      const fallback = nextAvailableTarget(state, step)
       if (fallback !== null) {
-        target = { provider: fallback.provider, model: fallback.model, estimatedCost: target.estimatedCost }
+        target = { provider: fallback.provider, model: fallback.model, reasoningEffort: fallback.reasoningEffort, estimatedCost: target.estimatedCost }
       }
     }
     const plannedProvider = target.provider
@@ -682,12 +728,15 @@ export function apply(ctx) {
       visionBridges: state.visionBridges,
       hasImageBlocks: state.hasImageBlocks,
     })
-    state.lastTarget = { provider: target.provider, model: target.model, plannedProvider }
+    state.lastTarget = { provider: target.provider, model: target.model, reasoningEffort: target.reasoningEffort, plannedProvider }
     state.lastStep = step
     // Keep all non-routing request fields intact. If a route disappeared after
     // discovery, the LLM runtime will validate the proposal and the original
     // model remains available on the next step.
-    return { ...proposed, provider: target.provider, model: target.model }
+    const routed = { ...proposed, provider: target.provider, model: target.model }
+    if (target.reasoningEffort === undefined) delete routed.reasoningEffort
+    else routed.reasoningEffort = target.reasoningEffort
+    return routed
   })
 
   // A completed work step would normally close the turn immediately. Queue the
@@ -710,23 +759,29 @@ export function apply(ctx) {
   ctx.on('agent/request-error', async ({ agent, provider, failure, signal }, next) => {
     const state = stateFor(agent)
     if (signal?.aborted || state.mode !== 'collective' || !modelFallbackError(failure)) return next()
-    const failed = state.lastTarget?.provider === provider ? state.lastTarget : null
+    const failed = state.lastTarget !== null && (provider === undefined || provider === null || state.lastTarget.provider === provider) ? state.lastTarget : null
     if (failed === null) return next()
-    state.failedModels.add(routeKey(failed.plannedProvider ?? failed.provider, failed.model))
-    const fallback = nextAvailableTarget(state)
+    const failedKey = routeKey(failed.plannedProvider ?? failed.provider, failed.model)
+    state.failedModels.add(failedKey)
+    state.routeCooldowns.set(failedKey, Date.now() + failureCooldownMs(failure))
+    const fallback = nextAvailableTarget(state, state.lastStep)
     if (fallback === null) return next()
     if (state.plan !== null) {
       const plan = state.plan
       const failedStage = plan.subtasks?.[Math.max(0, state.lastStep - 1)]
+      const failedStageIndex = Math.max(0, state.lastStep - 1)
       const isSynthesisFailure = failedStage?.purpose === 'synthesis'
+      const subtasks = Array.isArray(plan.subtasks)
+        ? plan.subtasks.map((task, index) => index === failedStageIndex
+          ? { ...task, recommendedProvider: fallback.provider, recommended: fallback.model, recommendedReasoningEffort: fallback.reasoningEffort }
+          : task)
+        : plan.subtasks
       state.plan = {
         ...plan,
-        ...(plan.selected === null ? {} : { selected: { ...plan.selected, provider: fallback.provider, model: fallback.model } }),
+        ...(plan.selected === null ? {} : { selected: { ...plan.selected, provider: fallback.provider, model: fallback.model, reasoningEffort: fallback.reasoningEffort } }),
+        subtasks,
         ...(isSynthesisFailure ? {
-          synthesizer: { provider: fallback.provider, model: fallback.model },
-          subtasks: plan.subtasks.map((task, index) => index === plan.subtasks.length - 1
-            ? { ...task, recommendedProvider: fallback.provider, recommended: fallback.model }
-            : task),
+          synthesizer: { provider: fallback.provider, model: fallback.model, reasoningEffort: fallback.reasoningEffort },
         } : {}),
       }
     }

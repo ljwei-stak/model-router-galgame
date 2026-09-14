@@ -36,9 +36,17 @@ export function shouldRenderMarkdown(line) {
 export function routeFromNode(node) {
   if (node === null || typeof node !== 'object') return null
   const primary = node.requestConfig
-  if (primary?.provider && primary?.model) return { provider: primary.provider, model: primary.model }
+  if (primary?.provider && primary?.model) return {
+    provider: primary.provider,
+    model: primary.model,
+    ...(primary.reasoningEffort === undefined ? {} : { reasoningEffort: primary.reasoningEffort }),
+  }
   const provenance = node.provenance
-  if (provenance?.provider && provenance?.model) return { provider: provenance.provider, model: provenance.model }
+  if (provenance?.provider && provenance?.model) return {
+    provider: provenance.provider,
+    model: provenance.model,
+    ...(provenance.reasoningEffort === undefined ? {} : { reasoningEffort: provenance.reasoningEffort }),
+  }
   return null
 }
 

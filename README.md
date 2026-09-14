@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, PPT generation skills, and approval integration in one npm package, and runs inside an existing DSH host.
 
-**Current release: 0.4.31** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**Current release: 0.4.32** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
 ## Features
 
@@ -12,7 +12,7 @@ A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. 
 
 - **Collective mode** is the default. It creates work packages based on task complexity, domain, and dependencies, then selects available models for execution, verification, and final synthesis. Complex tasks run in stages, with each stage's model and assignment recorded.
 - **Single-session mode** uses the model selected in the native Harness model selector. The collective router does not override it in this mode.
-- **Quality and budget constraints** combine model specialties, LiveBench category scores, input/output prices, cache prices, and latency estimates. Pareto pruning and bounded Beam Search produce assignments and show budget feasibility, relaxed constraints, and fallback results.
+- **Quality, reasoning, and budget constraints** combine exact adapter-owned reasoning efforts with model specialties, LiveBench category scores, input/output prices, cache prices, and latency estimates. Pareto pruning and bounded Beam Search produce assignments and show budget feasibility, relaxed constraints, and fallback results.
 - **Editable prices** are available under "模型费用与路由预算" (Model costs and routing budget) in the GAL view settings. Set USD / 1M tokens prices, a per-task budget, and cache ratios; use `provider/model` to override prices for a particular gateway. Cache ratios default to 0.
 - **Inspectable cost summaries** show per-stage estimates, expected savings, quality floors, and the models actually used. A failed LiveBench refresh keeps the previous snapshot; if none exists, the experimental baseline is explicitly identified.
 
@@ -36,7 +36,7 @@ Open **"GAL视窗 → GAL游戏" (GAL view → GAL game)** in an existing Harnes
 - The Galgame title screen links continue, new game, character routes, chapters, and accessibility. Music volume, sound captions, reduced motion, high contrast, large type, readable font, screen-reader announcements, and keyboard shortcuts are available.
 - Open **"剧目与章节" (Episodes and chapters)** in the story header to switch episodes or try a main chapter directly. Each episode has its own autosave and three manual slots, with automatic playback, history, JSON import/export, and restart. Legacy and free-mode saves remain separate.
 
-See the Chinese [character bible](大模型娘人物设定.md) and [full story outline](GAL_STORY_V2_OUTLINE.zh.md). Version 0.4.31 adds transparent DeepSeek expressions, Claude's default and high-tension portrait roles, 22 character-specific dialogue frames, and scene-paced MiniMax score transitions.
+See the Chinese [character bible](大模型娘人物设定.md) and [full story outline](GAL_STORY_V2_OUTLINE.zh.md). Version 0.4.32 keeps the complete third-stage GAL presentation and repairs collective conversation routing: every work package now receives a supported reasoning effort, stale efforts are removed on model switches, and route-local provider/protocol failures automatically fall back with a session cooldown.
 
 The episode contains 666 nodes and 44 dilemmas. Its replay-derived state tracks five global stance axes, 33 character commitments, and 42 evidence items. Protocol composition reaches six institutional ending classes; relationship epilogues and 44 side-route conclusions are calculated independently.
 
@@ -48,18 +48,18 @@ Story mode does not require provider credentials. Free mode requires a working m
 - **Ego Browser** provides visible browser tools for tasks requiring JavaScript, login sessions, or page interaction. The router guides models to switch to the browser after search failures; users complete CAPTCHAs and human verification.
 - **Approval integration** attaches work-package, stage, model, and task-count context to sandbox escalation requests in multi-task work. Approval decisions, human confirmation, auditing, and learning are handled by `@ljwei-stak/dsh-approval-gate` and the host permission policy. Installing the router does not enable automatic approval.
 - **OpenCode Zen compatibility** repairs OpenCode endpoint overrides mistakenly set to official website URLs while preserving custom gateways.
-- **DSH 2.0.7 compatibility** uses the host's supported plugin-source forms for routing, persona, and web context, and declares the `webServer` service required by GAL and update RPC registration.
+- **DSH Desktop 2.0.10 compatibility** uses the host's supported plugin-source forms for routing, persona, and web context, and declares the `webServer` service required by GAL and update RPC registration.
 
 ### PowerPoint generation with PPT Master
 
 - **PPT Master** is bundled as a native DSH skill. In a normal work conversation, a PowerPoint/PPT/PPTX request can load `ppt-master` through the host's `skill` tool and follow its planning, SVG, validation, and PPTX export workflow.
 - Model Router keeps the host's skill catalog, loaded skill instructions, and file/terminal tools available when it chooses a model or advances a work stage. Use ordinary chat or the GAL conversation view for presentation work; story mode does not run tools, and free-play character dialogue is not the work agent.
 - The package includes the skill, Python scripts, and templates. Python dependencies require the explicit setup below; npm installation does not install Python or run pip. Generated presentations belong in the conversation's writable workspace.
-- Router 0.4.31 bundles PPT Master 6.3.3, which supports the managed Python root and avoids the faulty Windows Bash runner in DSH Desktop 2.0.7. It also includes the PPTX staging-directory permission repair from 6.3.2. Host sandbox and approval settings remain in effect.
+- Router 0.4.32 bundles PPT Master 6.3.3, which supports the managed Python root and avoids the faulty Windows Bash runner in DSH Desktop 2.0.7. It also includes the PPTX staging-directory permission repair from 6.3.2. Host sandbox and approval settings remain in effect.
 
 ### Watcher work paths and model usage
 
-Router 0.4.31 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG), built and tested against the DSH Desktop 2.0.7 SDK.
+Router 0.4.32 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG), built against the DSH 0.1.5 SDK and tested in DSH Desktop 2.0.10.
 Open the eye button in the native session header from Chat or the GAL work view
 to inspect turns, parallel tools, retries, timing, and recorded token usage.
 The Watcher settings section summarizes local session usage; provider and model
@@ -82,7 +82,7 @@ Watcher entry, and retaining either standalone entry would duplicate the loader 
 
 "GAL 视窗 → 项目更新" (GAL view → Project updates) checks the plugin's npm version and the official DSH Desktop version separately. It offers "仅更新 npm 插件" (Update only the npm plugin), "仅更新完整客户端" (Update only the full client), and "一键更新插件与客户端" (Update plugin and client). Desktop plugin installation runs through the authenticated host connection. Fully exit and restart DSH Desktop after a successful installation.
 
-A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.31` version and DSH Desktop's version are independent.
+A page opened in a regular browser can check the plugin version and open download pages, but cannot install the desktop client or change its profile directly. The plugin's `0.4.32` version and DSH Desktop's version are independent.
 
 ## Installation
 
@@ -90,8 +90,8 @@ A page opened in a regular browser can check the plugin version and open downloa
 
 | Environment | Requirements and installation entry point |
 | --- | --- |
-| DSH Desktop installed | Verified with DSH Desktop 2.0.7. On Windows / macOS, use "打开 DSH 终端" (Open DSH terminal) in Settings. If this entry is unavailable, use the CLI instructions below with the actual profile. |
-| Harness Web / CLI | Verified with `@deepseek-ai/dsh@0.1.5-rc.1`, the SDK used by DSH Desktop 2.0.7. Requires working `dsh` and `pnpm` commands and an explicit `--profile`. |
+| DSH Desktop installed | Verified with DSH Desktop 2.0.10. On Windows / macOS, use "打开 DSH 终端" (Open DSH terminal) in Settings. If this entry is unavailable, use the CLI instructions below with the actual profile. |
+| Harness Web / CLI | Verified with `@deepseek-ai/dsh@0.1.5-rc.1`. Requires working `dsh` and `pnpm` commands and an explicit `--profile`. |
 | Node.js | The plugin declares `>=22.19`; the official CLI above requires `^22.19.0` or `>=24.0.0`. Node.js 24 is recommended. Prefer the bundled runtime for desktop installations. |
 | Models and network | Routing, AI conversation, and free mode require at least one working model provider. Story mode requires no model API. Installation requires access to `https://registry.npmjs.org/`. |
 
@@ -104,7 +104,7 @@ Installing this npm package does not install DSH Desktop, model services, or a b
 
 ```sh
 dsh --version
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.32
 ```
 
 3. After installation succeeds, use the desktop restart control, or explicitly quit from the system tray and reopen the app. Select the same profile. Closing the window may only hide the application.
@@ -119,7 +119,7 @@ If you do not have a global `dsh` but already have Node.js/npm and pnpm, replace
 
 ```sh
 dsh --version
-dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
+dsh plugin --profile web add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.32
 dsh --profile web --dump-config
 ```
 
@@ -143,9 +143,9 @@ dsh --dump-config
 
 For Web / CLI, use `dsh --profile web --dump-config`. The combined configuration should include all seven plugins below, with no duplicate loader IDs. A configuration dump does not replace checking that the host starts successfully. Install only the Router aggregate package; its dependencies and bundle entries are added automatically.
 
-| Plugin | Pinned version for 0.4.31 | Purpose |
+| Plugin | Pinned version for 0.4.32 | Purpose |
 | --- | --- | --- |
-| `@ljwei-stak/model-router-galgame` | `0.4.31` | Routing, GAL view, story/free modes, and update controls |
+| `@ljwei-stak/model-router-galgame` | `0.4.32` | Routing, GAL view, story/free modes, and update controls |
 | `@liustack/modlens` | `3.25.4` | Image understanding through compatible routes |
 | `@liustack/modsearch` | `5.10.1` | Search and page reading |
 | `@ljwei-stak/dsh-ego-browser` | `0.8.3` | Visible browser tools |
@@ -244,7 +244,7 @@ For example, only after confirming that ModLens is a duplicate standalone depend
 
 ```sh
 dsh plugin remove @liustack/modlens
-dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.31
+dsh plugin add --save-exact --registry=https://registry.npmjs.org/ @ljwei-stak/model-router-galgame@0.4.32
 ```
 
 For Web / CLI, add `--profile web` after `plugin` in both commands. Handle other duplicate dependencies according to the actual error; do not remove all plugins at once. These removal commands are unnecessary when no duplicate entry exists.
@@ -368,8 +368,8 @@ work package `i` and candidate `m`:
 
 $$
 \begin{aligned}
-U(i,m)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m)+w_l(c)(1-L(m))\\
-&+w_s(c)S(i,m)-w_r(c)R(m)\\
+U(i,m,e)={}&w_q(c)Q(i,m)+w_c(c)C_{\mathrm{norm}}(m,e)+w_l(c)(1-L(m,e))\\
+&+w_s(c)S(i,m)+w_e(c)E(i,m,e)-w_r(c)R(m)\\
 &-\lambda\,\mathbb{1}[m\text{ already used}]
 -\kappa\max(0,F(i)-Q(i,m))\\
 &+\mathrm{synthesis\_bonus}(i,m)
@@ -378,13 +378,13 @@ $$
 
 The default weight vectors are:
 
-| Complexity | Quality | Cost | Latency | Specialty | Risk |
-|---|---:|---:|---:|---:|---:|
-| simple | 0.30 | 0.50 | 0.14 | 0.04 | 0.02 |
-| balanced | 0.45 | 0.30 | 0.10 | 0.10 | 0.05 |
-| complex | 0.55 | 0.16 | 0.06 | 0.16 | 0.07 |
+| Complexity | Quality | Cost | Latency | Specialty | Reasoning | Risk |
+|---|---:|---:|---:|---:|---:|---:|
+| simple | 0.28 | 0.45 | 0.14 | 0.04 | 0.07 | 0.02 |
+| balanced | 0.40 | 0.26 | 0.10 | 0.09 | 0.10 | 0.05 |
+| complex | 0.48 | 0.14 | 0.06 | 0.14 | 0.11 | 0.07 |
 
-For synthesis, the quality-oriented vector is `0.70/0.10/0.04/0.10/0.06`, and
+For synthesis, the quality/reasoning-oriented vector is `0.58/0.08/0.04/0.08/0.16/0.06`, and
 DeepSeek V4 Pro receives a small deterministic preference bonus when present. The
 bonus is soft: if that route is unavailable, the normal feasible ranking remains in
 force. Reusing a route costs `0.08` utility; changing routes across a dependency
@@ -404,14 +404,14 @@ and bounds the work on large model catalogs.
 #### 5.2 Pareto pruning
 
 Candidate `a` dominates candidate `b` for the same package when it is no worse in all
-five dimensions and strictly better in at least one:
+six dimensions and strictly better in at least one:
 
 $$
 Q(a)\ge Q(b),\quad \mathrm{Cost}(a)\le\mathrm{Cost}(b),\quad L(a)\le L(b),\quad
-S(a)\ge S(b),\quad R(a)\le R(b)
+S(a)\ge S(b),\quad E(a)\ge E(b),\quad R(a)\le R(b)
 $$
 
-Dominated candidates cannot improve quality, cost, latency, specialty, or risk. The
+Dominated candidates cannot improve quality, cost, latency, specialty, reasoning fit, or risk. The
 router keeps the Pareto frontier plus three anchors: the cheapest candidate, the
 highest-utility candidate, and the highest-quality candidate. The per-package pool is
 limited to 12 routes.

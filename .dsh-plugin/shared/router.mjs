@@ -9,9 +9,22 @@
 import { liveBenchRow } from './livebench.mjs'
 
 export const OBJECTIVE_WEIGHTS = Object.freeze({
-  simple: Object.freeze({ quality: 0.30, cost: 0.50, latency: 0.14, specialty: 0.04, risk: 0.02 }),
-  balanced: Object.freeze({ quality: 0.45, cost: 0.30, latency: 0.10, specialty: 0.10, risk: 0.05 }),
-  complex: Object.freeze({ quality: 0.55, cost: 0.16, latency: 0.06, specialty: 0.16, risk: 0.07 }),
+  simple: Object.freeze({ quality: 0.28, cost: 0.45, latency: 0.14, specialty: 0.04, reasoning: 0.07, risk: 0.02 }),
+  balanced: Object.freeze({ quality: 0.40, cost: 0.26, latency: 0.10, specialty: 0.09, reasoning: 0.10, risk: 0.05 }),
+  complex: Object.freeze({ quality: 0.48, cost: 0.14, latency: 0.06, specialty: 0.14, reasoning: 0.11, risk: 0.07 }),
+})
+
+/** Canonical order used only to compare adapter-owned opaque effort ids. */
+export const REASONING_EFFORT_ORDER = Object.freeze(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+
+const REASONING_EFFORT_MULTIPLIERS = Object.freeze({
+  off: Object.freeze({ output: 0.78, latency: 0.75 }),
+  minimal: Object.freeze({ output: 0.86, latency: 0.82 }),
+  low: Object.freeze({ output: 0.93, latency: 0.90 }),
+  medium: Object.freeze({ output: 1, latency: 1 }),
+  high: Object.freeze({ output: 1.16, latency: 1.15 }),
+  xhigh: Object.freeze({ output: 1.34, latency: 1.30 }),
+  max: Object.freeze({ output: 1.58, latency: 1.50 }),
 })
 
 /** Quality floor for a task node before a cost-saving substitution is allowed. */
@@ -328,6 +341,7 @@ function taskTokenBudget(text, task, complexity, cacheReadRatio = 0, cacheWriteR
     synthesis: { input: 1.65, output: 1.30 },
   }
   const multiplier = multipliers[task.purpose] ?? { input: 1, output: 1 }
+  const effortMultiplier = reasoningEffortMultiplier(task.reasoningEffort)
   const totalInputTokens = Math.max(80, Math.round(inputTokens * multiplier.input))
   const ratios = normalizedCacheRatios(cacheReadRatio, cacheWriteRatio)
   const cacheReadTokens = Math.min(totalInputTokens, Math.max(0, Math.round(totalInputTokens * ratios.read)))
@@ -336,7 +350,7 @@ function taskTokenBudget(text, task, complexity, cacheReadRatio = 0, cacheWriteR
     inputTokens: totalInputTokens,
     cacheReadTokens,
     cacheWriteTokens,
-    outputTokens: Math.max(220, Math.round(900 * multiplier.output)),
+    outputTokens: Math.max(220, Math.round(900 * multiplier.output * effortMultiplier.output)),
   }
 }
 
@@ -349,12 +363,12 @@ function taskQualityFloor(band, task) {
 
 function taskPackages(taskType, text, band) {
   if (band !== 'complex') {
-    const task = { id: 'execution', name: '直接回答与必要校验', type: taskType, purpose: 'execution', criticality: 0.65, dependsOn: [] }
+    const task = { id: 'execution', name: '直接回答与必要校验', type: taskType, purpose: 'execution', criticality: 0.65, dependsOn: [], preferredReasoningEffort: band === 'simple' ? 'low' : 'medium' }
     return [{ ...task, qualityFloor: taskQualityFloor(band, task) }]
   }
   const value = String(text ?? '')
   const packages = [
-    { id: 'analysis', name: '问题建模与约束提取', type: 'reasoning', purpose: 'analysis', criticality: 0.92, dependsOn: [] },
+    { id: 'analysis', name: '问题建模与约束提取', type: 'reasoning', purpose: 'analysis', criticality: 0.92, dependsOn: [], preferredReasoningEffort: 'high' },
   ]
   const domains = [...new Set([...(detectTaskTypes(text)), taskType].filter(type => type !== 'general'))]
   for (const type of domains.length > 0 ? domains : [taskType]) {
@@ -365,6 +379,7 @@ function taskPackages(taskType, text, band) {
       purpose: 'execution',
       criticality: domains.length > 1 ? 0.80 : 0.78,
       dependsOn: ['analysis'],
+      preferredReasoningEffort: 'high',
     })
   }
   if (/(测试|验证|评估|对比|benchmark|test|verify|audit)/i.test(value)) {
@@ -375,6 +390,7 @@ function taskPackages(taskType, text, band) {
       purpose: 'verification',
       criticality: 0.88,
       dependsOn: packages.filter(task => task.purpose === 'execution').map(task => task.id),
+      preferredReasoningEffort: 'high',
     })
   }
   packages.push({
@@ -384,11 +400,12 @@ function taskPackages(taskType, text, band) {
     purpose: 'synthesis',
     criticality: 1,
     dependsOn: packages.filter(task => task.purpose !== 'analysis').map(task => task.id),
+    preferredReasoningEffort: 'xhigh',
   })
   return packages.map(task => ({ ...task, qualityFloor: taskQualityFloor(band, task) }))
 }
 
-const SYNTHESIS_WEIGHTS = Object.freeze({ quality: 0.70, cost: 0.10, latency: 0.04, specialty: 0.10, risk: 0.06 })
+const SYNTHESIS_WEIGHTS = Object.freeze({ quality: 0.58, cost: 0.08, latency: 0.04, specialty: 0.08, reasoning: 0.16, risk: 0.06 })
 const ROUTING_BEAM_WIDTH = 256
 const ROUTING_CANDIDATE_LIMIT = 12
 
@@ -406,22 +423,78 @@ function compareRowsStable(left, right) {
   return compareText(routeKey(left.provider, left.model), routeKey(right.provider, right.model))
 }
 
+function reasoningEffortRank(effort) {
+  const normalized = String(effort ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '')
+  const aliases = { none: 'off', disabled: 'off', extra: 'xhigh', extrahigh: 'xhigh', maximum: 'max' }
+  const canonical = aliases[normalized] ?? normalized
+  const index = REASONING_EFFORT_ORDER.indexOf(canonical)
+  return index < 0 ? REASONING_EFFORT_ORDER.indexOf('medium') : index
+}
+
+function reasoningEffortMultiplier(effort) {
+  const normalized = String(effort ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '')
+  const aliases = { none: 'off', disabled: 'off', extra: 'xhigh', extrahigh: 'xhigh', maximum: 'max' }
+  return REASONING_EFFORT_MULTIPLIERS[aliases[normalized] ?? normalized] ?? REASONING_EFFORT_MULTIPLIERS.medium
+}
+
+/** Pick the closest exact effort id exposed by an adapter. */
+export function selectReasoningEffort(efforts, preferred = 'medium') {
+  const exact = Array.isArray(efforts)
+    ? [...new Set(efforts.map(effort => String(effort?.id ?? effort ?? '')).filter(Boolean))]
+    : []
+  if (exact.length === 0) return undefined
+  const preferredRank = reasoningEffortRank(preferred)
+  return exact.slice().sort((left, right) => {
+    const distance = Math.abs(reasoningEffortRank(left) - preferredRank) - Math.abs(reasoningEffortRank(right) - preferredRank)
+    if (distance !== 0) return distance
+    return reasoningEffortRank(left) - reasoningEffortRank(right) || compareText(left, right)
+  })[0]
+}
+
+function reasoningDecision(row, task) {
+  const preferred = String(task.preferredReasoningEffort ?? 'medium')
+  const efforts = Array.isArray(row.reasoningEfforts) ? row.reasoningEfforts : []
+  if (efforts.length === 0) {
+    const knownUnsupported = row.reasoningKnown === true
+    const preferredRank = reasoningEffortRank(preferred)
+    return {
+      reasoningEffort: undefined,
+      reasoningFit: knownUnsupported ? clamp(0.78 - preferredRank * 0.08) : 0.55,
+      preferredReasoningEffort: preferred,
+      multiplier: REASONING_EFFORT_MULTIPLIERS.medium,
+    }
+  }
+  const preferredRank = reasoningEffortRank(preferred)
+  // On an equal distance the shared selector prefers the lower effort to
+  // avoid unnecessary latency and output-token cost.
+  const chosen = selectReasoningEffort(efforts, preferred)
+  const distance = Math.abs(reasoningEffortRank(chosen) - preferredRank)
+  return {
+    reasoningEffort: chosen,
+    reasoningFit: clamp(1 - distance / (REASONING_EFFORT_ORDER.length - 1)),
+    preferredReasoningEffort: preferred,
+    multiplier: reasoningEffortMultiplier(chosen),
+  }
+}
+
 function candidateUtility(row, task, weights, maxCost, usedRoutes, cacheReadRatio = 0, cacheWriteRatio = 0) {
   const quality = qualityForTask(row, task.type)
   const floor = Number(task.qualityFloor ?? taskQualityFloor('complex', task))
   const qualityGap = Math.max(0, floor - quality)
   const duplicatePenalty = usedRoutes.has(routeKey(row.provider, row.model)) ? 0.08 : 0
   const synthesisPreference = task.purpose === 'synthesis' && /deepseek[- ]?v4[- ]?pro/i.test(row.model) ? 0.025 : 0
-  const cost = costScore(row.pricing, maxCost, cacheReadRatio, cacheWriteRatio)
+  const reasoning = reasoningDecision(row, task)
+  const cost = clamp(costScore(row.pricing, maxCost, cacheReadRatio, cacheWriteRatio) / Math.sqrt(reasoning.multiplier.output))
   const score = weights.quality * quality
     + weights.cost * cost
-    + weights.latency * (1 - clamp(row.latency))
+    + weights.latency * (1 - clamp(row.latency * reasoning.multiplier.latency))
     + weights.specialty * specialtyForTask(row, task.type)
+    + (weights.reasoning ?? 0) * reasoning.reasoningFit
     - weights.risk * row.risk
     - duplicatePenalty
     - qualityGap * (task.criticality ?? 0.75)
     + synthesisPreference
-  return { score, floor, qualityGap }
+  return { score, floor, qualityGap, ...reasoning }
 }
 
 function chooseAssignment(rows, task, weights, maxCost, usedRoutes, preferred, cacheReadRatio = 0, cacheWriteRatio = 0) {
@@ -437,7 +510,8 @@ function chooseAssignment(rows, task, weights, maxCost, usedRoutes, preferred, c
 }
 
 function taskCost(row, task, text, complexity, cacheReadRatio = 0, cacheWriteRatio = 0) {
-  const tokens = taskTokenBudget(text, task, complexity, cacheReadRatio, cacheWriteRatio)
+  const decision = row === null ? null : reasoningDecision(row, task)
+  const tokens = taskTokenBudget(text, { ...task, reasoningEffort: decision?.reasoningEffort }, complexity, cacheReadRatio, cacheWriteRatio)
   return row === null
     ? 0
     : (((tokens.inputTokens - tokens.cacheReadTokens - tokens.cacheWriteTokens) * row.pricing.input)
@@ -447,29 +521,35 @@ function taskCost(row, task, text, complexity, cacheReadRatio = 0, cacheWriteRat
 }
 
 function dominates(left, right, task, text, complexity, cacheReadRatio, cacheWriteRatio) {
+  const leftReasoning = reasoningDecision(left, task)
+  const rightReasoning = reasoningDecision(right, task)
   const leftValues = {
     quality: qualityForTask(left, task.type),
     cost: taskCost(left, task, text, complexity, cacheReadRatio, cacheWriteRatio),
-    latency: clamp(left.latency),
+    latency: clamp(left.latency * leftReasoning.multiplier.latency),
     specialty: specialtyForTask(left, task.type),
+    reasoning: leftReasoning.reasoningFit,
     risk: clamp(left.risk),
   }
   const rightValues = {
     quality: qualityForTask(right, task.type),
     cost: taskCost(right, task, text, complexity, cacheReadRatio, cacheWriteRatio),
-    latency: clamp(right.latency),
+    latency: clamp(right.latency * rightReasoning.multiplier.latency),
     specialty: specialtyForTask(right, task.type),
+    reasoning: rightReasoning.reasoningFit,
     risk: clamp(right.risk),
   }
   const noWorse = leftValues.quality >= rightValues.quality
     && leftValues.cost <= rightValues.cost
     && leftValues.latency <= rightValues.latency
     && leftValues.specialty >= rightValues.specialty
+    && leftValues.reasoning >= rightValues.reasoning
     && leftValues.risk <= rightValues.risk
   const strictlyBetter = leftValues.quality > rightValues.quality
     || leftValues.cost < rightValues.cost
     || leftValues.latency < rightValues.latency
     || leftValues.specialty > rightValues.specialty
+    || leftValues.reasoning > rightValues.reasoning
     || leftValues.risk < rightValues.risk
   return noWorse && strictlyBetter
 }
@@ -504,7 +584,7 @@ function candidatePool(rows, task, weights, maxCost, text, complexity, cacheRead
 }
 
 function stateSignature(state) {
-  return state.assignments.map(assignment => routeKey(assignment.row?.provider, assignment.row?.model)).join('|')
+  return state.assignments.map(assignment => `${routeKey(assignment.row?.provider, assignment.row?.model)}@${assignment.decision?.reasoningEffort ?? 'provider-default'}`).join('|')
 }
 
 function compareUtilityStates(left, right) {
@@ -585,7 +665,17 @@ export function buildPlan({ text = '', available = [], mode = 'collective', pric
   const taskType = classifyTask(text)
   const weights = OBJECTIVE_WEIGHTS[complexity.band]
   const discovered = Array.isArray(available)
-    ? available.map(entry => ({ provider: String(entry.provider ?? ''), model: String(entry.model ?? '') }))
+    ? available.map(entry => {
+        const rawEfforts = Array.isArray(entry.reasoningEfforts) ? entry.reasoningEfforts : []
+        const reasoningEfforts = rawEfforts.map(effort => String(effort?.id ?? effort ?? '')).filter(Boolean)
+        return {
+          provider: String(entry.provider ?? ''),
+          model: String(entry.model ?? ''),
+          reasoningEfforts: [...new Set(reasoningEfforts)],
+          defaultReasoningEffort: entry.defaultReasoningEffort === undefined ? undefined : String(entry.defaultReasoningEffort),
+          reasoningKnown: entry.reasoningKnown === true || Array.isArray(entry.reasoningEfforts),
+        }
+      })
     : []
   const rows = []
   const normalizedPrices = normalizePricing(pricing)
@@ -618,6 +708,9 @@ export function buildPlan({ text = '', available = [], mode = 'collective', pric
       latency: metadata.latency,
       risk: metadata.risk,
       specialty,
+      reasoningEfforts: route.reasoningEfforts,
+      defaultReasoningEffort: route.defaultReasoningEffort,
+      reasoningKnown: route.reasoningKnown,
       pricing: pricingRow,
       score: 0,
       estimatedCost: estimateCost(metadata, text, 900, normalizedPrices, cacheReadRatio, cacheWriteRatio),
@@ -671,27 +764,36 @@ export function buildPlan({ text = '', available = [], mode = 'collective', pric
     row.score = candidateUtility(row, taskNodes[0] ?? { type: taskType, qualityFloor: QUALITY_FLOORS[complexity.band] }, weights, maxCost, new Set(), cacheReadRatio, cacheWriteRatio).score
   }
   rows.sort((left, right) => right.score - left.score || compareRowsStable(left, right))
-  const selected = assignments[0]?.row ?? rows[0] ?? null
-  const synthesizer = assignments.at(-1)?.row ?? rows.find(row => /deepseek/i.test(row.model)) ?? rows[0]
-  const subtasks = assignments.map(({ task, row }) => ({
+  const selectedAssignment = assignments[0]
+  const selected = selectedAssignment?.row ?? rows[0] ?? null
+  const synthesizerAssignment = assignments.at(-1)
+  const synthesizer = synthesizerAssignment?.row ?? rows.find(row => /deepseek/i.test(row.model)) ?? rows[0]
+  const subtasks = assignments.map(({ task, row, decision }) => ({
     id: task.id,
     name: task.name,
     type: task.type,
     recommended: row?.model ?? '待发现模型',
     recommendedProvider: row?.provider ?? '',
+    recommendedReasoningEffort: decision?.reasoningEffort,
+    preferredReasoningEffort: decision?.preferredReasoningEffort ?? task.preferredReasoningEffort,
+    reasoningFit: Number(Number(decision?.reasoningFit ?? 0).toFixed(3)),
     purpose: task.purpose,
     criticality: task.criticality,
     qualityFloor: Number(task.qualityFloor.toFixed(3)),
     dependsOn: [...(task.dependsOn ?? [])],
   }))
-  const costBreakdown = assignments.map(({ task, row, estimatedCost, handoffPenalty }, index) => {
-    const tokens = taskTokenBudget(text, task, complexity.band, cacheReadRatio, cacheWriteRatio)
+  const costBreakdown = assignments.map(({ task, row, decision, estimatedCost, handoffPenalty }, index) => {
+    const tokens = taskTokenBudget(text, { ...task, reasoningEffort: decision?.reasoningEffort }, complexity.band, cacheReadRatio, cacheWriteRatio)
     const taskEstimate = estimatedCost ?? taskCost(row, task, text, complexity.band, cacheReadRatio, cacheWriteRatio)
     return {
       stage: index + 1,
       purpose: task.purpose,
       model: row?.model ?? '待发现模型',
       provider: row?.provider ?? '',
+      reasoningEffort: decision?.reasoningEffort,
+      preferredReasoningEffort: decision?.preferredReasoningEffort,
+      reasoningFit: Number(Number(decision?.reasoningFit ?? 0).toFixed(3)),
+      reasoningOutputMultiplier: Number(Number(decision?.multiplier?.output ?? 1).toFixed(2)),
       inputTokens: tokens.inputTokens,
       cacheReadTokens: tokens.cacheReadTokens,
       cacheWriteTokens: tokens.cacheWriteTokens,
@@ -704,11 +806,7 @@ export function buildPlan({ text = '', available = [], mode = 'collective', pric
   const totalEstimate = costBreakdown.reduce((sum, row) => sum + row.estimatedCost, 0)
   const baselineCost = assignments.reduce((sum, { task }) => {
     const strongest = rows.reduce((best, row) => qualityForTask(row, task.type) > (best === null ? -1 : qualityForTask(best, task.type)) ? row : best, null)
-    const tokens = taskTokenBudget(text, task, complexity.band, cacheReadRatio, cacheWriteRatio)
-    return sum + (strongest === null ? 0 : (((tokens.inputTokens - tokens.cacheReadTokens - tokens.cacheWriteTokens) * strongest.pricing.input)
-      + (tokens.cacheReadTokens * strongest.pricing.cacheRead)
-      + (tokens.cacheWriteTokens * strongest.pricing.cacheWrite)
-      + (tokens.outputTokens * strongest.pricing.output)) / 1_000_000)
+    return sum + taskCost(strongest, task, text, complexity.band, cacheReadRatio, cacheWriteRatio)
   }, 0)
   const budgetExceeded = Number(budgetUsd) > 0 && totalEstimate > Number(budgetUsd)
   const savings = baselineCost <= 0 ? 0 : clamp((baselineCost - totalEstimate) / baselineCost)
@@ -716,17 +814,20 @@ export function buildPlan({ text = '', available = [], mode = 'collective', pric
   const minimumFeasibleCost = optimized?.minimumFeasibleCost ?? minimumCostPlan?.cost ?? 0
   const reason = selected === null
     ? '尚未发现可用模型，保留 Harness 原始模型选择。'
-    : `${complexity.band === 'simple' ? '低复杂度优先成本与响应速度' : complexity.band === 'balanced' ? '在质量、成本、延迟与风险之间平衡' : '高复杂度执行依赖感知的全局约束分配'}；任务类型为 ${taskType}，已对 ${String(subtasks.length)} 个工作包进行 Pareto 剪枝和有界组合搜索。`
+    : `${complexity.band === 'simple' ? '低复杂度优先成本、响应速度与较低推理开销' : complexity.band === 'balanced' ? '在质量、成本、推理等级、延迟与风险之间平衡' : '高复杂度执行包含推理等级的依赖感知全局约束分配'}；任务类型为 ${taskType}，已对 ${String(subtasks.length)} 个工作包进行 Pareto 剪枝和有界组合搜索。`
   return {
     mode,
     complexity: { value: Number(complexity.value.toFixed(3)), band: complexity.band },
     taskType,
     taskTypes: [...new Set(taskNodes.map(task => task.type).filter(type => type !== 'reasoning'))],
     objectiveWeights: weights,
-    candidates: rows.slice(0, 8).map(row => ({ provider: row.provider, model: row.model, score: Number(row.score.toFixed(3)), quality: Number(row.quality.toFixed(3)), specialty: Number(row.specialty.toFixed(3)), estimatedCost: Number(row.estimatedCost.toFixed(6)), inputPrice: row.pricing.input, outputPrice: row.pricing.output })),
-    selected: selected === null ? null : { provider: selected.provider, model: selected.model, estimatedCost: Number(selected.estimatedCost.toFixed(6)) },
+    candidates: rows.slice(0, 8).map(row => {
+      const decision = candidateUtility(row, taskNodes[0] ?? { type: taskType, qualityFloor: QUALITY_FLOORS[complexity.band], preferredReasoningEffort: complexity.band === 'simple' ? 'low' : 'medium' }, weights, maxCost, new Set(), cacheReadRatio, cacheWriteRatio)
+      return { provider: row.provider, model: row.model, score: Number(row.score.toFixed(3)), quality: Number(row.quality.toFixed(3)), specialty: Number(row.specialty.toFixed(3)), reasoningEffort: decision.reasoningEffort, preferredReasoningEffort: decision.preferredReasoningEffort, reasoningFit: Number(decision.reasoningFit.toFixed(3)), reasoningKnown: row.reasoningKnown, reasoningEfforts: row.reasoningEfforts, estimatedCost: Number(row.estimatedCost.toFixed(6)), inputPrice: row.pricing.input, outputPrice: row.pricing.output }
+    }),
+    selected: selected === null ? null : { provider: selected.provider, model: selected.model, reasoningEffort: selectedAssignment?.decision?.reasoningEffort, estimatedCost: Number(selected.estimatedCost.toFixed(6)) },
     subtasks,
-    synthesizer: synthesizer === undefined ? null : { provider: synthesizer.provider, model: synthesizer.model },
+    synthesizer: synthesizer === undefined ? null : { provider: synthesizer.provider, model: synthesizer.model, reasoningEffort: synthesizerAssignment?.decision?.reasoningEffort },
     estimatedCost: Number(totalEstimate.toFixed(6)),
     costBreakdown,
     optimization: {

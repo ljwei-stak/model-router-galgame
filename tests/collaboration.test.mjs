@@ -2,14 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { apply } from '../.dsh-plugin/index.mjs'
 
-function fakeContext() {
+function fakeContext(options = {}) {
   const listeners = new Map()
   let commandHandler
   const settings = {
     describe: () => [{ ns: 'llm-pi-ai', user: {}, revision: 1 }],
     mutate: async () => undefined,
   }
-  const routes = [
+  const routes = options.routes ?? [
     { provider: 'zen', model: 'GPT 5.6 Sol' },
     { provider: 'zen', model: 'Qwen3.7 Plus' },
     { provider: 'zen', model: 'DeepSeek V4 Pro' },
@@ -21,6 +21,15 @@ function fakeContext() {
     llm: {
       listProviders: () => [{ id: 'zen' }],
       listModels: async () => routes.map(route => ({ id: route.model })),
+      resolveModelInfo: options.resolveModelInfo ?? (async (provider, model) => ({
+        provider,
+        id: model,
+        name: model,
+        reasoning: {
+          efforts: ['low', 'medium', 'high', 'xhigh'].map(id => ({ id, name: id })),
+          defaultEffort: 'medium',
+        },
+      })),
     },
     logger: { debug: () => undefined, info: () => undefined, warn: () => undefined },
     on: (event, callback) => { listeners.set(event, callback); return () => listeners.delete(event) },
@@ -123,8 +132,78 @@ test('single-session persona does not create a routing plan or overwrite the nat
     agent, messages: [user('写一段简短的说明')], signal, turn: 1, step: 1,
   }, async () => ({ kind: 'enter', messages: [] }))
   assert.equal(decision.messages.filter(message => message.content[0].text.includes('[Model Router Persona 表达层]')).length, 1)
-  const request = await listeners.get('agent/request')({ agent, step: 1, signal }, async () => ({ provider: 'zen', model: 'Qwen3.7 Plus' }))
-  assert.deepEqual({ provider: request.provider, model: request.model }, { provider: 'zen', model: 'Qwen3.7 Plus' })
+  const proposal = { provider: 'zen', model: 'Qwen3.7 Plus', reasoningEffort: 'xhigh' }
+  const request = await listeners.get('agent/request')({ agent, step: 1, signal }, async () => proposal)
+  assert.strictEqual(request, proposal)
+})
+
+test('collective routing replaces a stale proposal effort with the exact planned effort', async () => {
+  const { listeners } = fakeContext()
+  const agent = { inject: () => undefined }
+  const signal = new AbortController().signal
+  await listeners.get('agent/pre-step')({
+    agent,
+    messages: [user('请设计一个复杂工程架构，拆分模块并编写测试与部署方案。')],
+    signal,
+    turn: 1,
+    step: 1,
+  }, async () => ({ kind: 'enter', messages: [] }))
+  const request = await listeners.get('agent/request')({ agent, step: 1, signal }, async () => ({
+    provider: 'old-provider', model: 'old-model', reasoningEffort: 'max', messages: [],
+  }))
+  assert.ok(['low', 'medium', 'high', 'xhigh'].includes(request.reasoningEffort))
+  assert.notEqual(request.reasoningEffort, 'max')
+})
+
+test('collective routing removes an inherited effort for a model without selectable reasoning', async () => {
+  const routes = [{ provider: 'zen', model: 'No Reasoning Model' }]
+  const { listeners } = fakeContext({
+    routes,
+    resolveModelInfo: async (provider, model) => ({ provider, id: model, name: model }),
+  })
+  const agent = { inject: () => undefined }
+  const signal = new AbortController().signal
+  await listeners.get('agent/pre-step')({
+    agent, messages: [user('请简要解释缓存')], signal, turn: 1, step: 1,
+  }, async () => ({ kind: 'enter', messages: [] }))
+  const request = await listeners.get('agent/request')({ agent, step: 1, signal }, async () => ({
+    provider: 'old-provider', model: 'old-model', reasoningEffort: 'high',
+  }))
+  assert.equal(request.model, 'No Reasoning Model')
+  assert.equal('reasoningEffort' in request, false)
+})
+
+test('unsupported provider stream events retry the same stage on another route', async () => {
+  const { listeners } = fakeContext()
+  const agent = { inject: () => undefined }
+  const signal = new AbortController().signal
+  await listeners.get('agent/pre-step')({
+    agent,
+    messages: [user('请设计一个复杂工程架构，拆分模块并编写测试与部署方案。')],
+    signal,
+    turn: 1,
+    step: 1,
+  }, async () => ({ kind: 'enter', messages: [] }))
+  const request = listeners.get('agent/request')
+  const first = await request({ agent, step: 1, signal }, async () => ({ provider: 'old', model: 'old' }))
+  const decision = await listeners.get('agent/request-error')({
+    agent,
+    provider: first.provider,
+    failure: { message: 'Unsupported provider stream event cannot be converted losslessly: field $.type = "codex.rate_limits"' },
+    signal,
+  }, async () => ({ kind: 'stop' }))
+  assert.deepEqual(decision, { kind: 'retry' })
+  const second = await request({ agent, step: 1, signal }, async () => ({ provider: 'old', model: 'old' }))
+  assert.notDeepEqual({ provider: second.provider, model: second.model }, { provider: first.provider, model: first.model })
+  await listeners.get('agent/pre-step')({
+    agent,
+    messages: [user('请继续校验同一套复杂架构、代码和测试方案。')],
+    signal,
+    turn: 2,
+    step: 1,
+  }, async () => ({ kind: 'enter', messages: [] }))
+  const nextTurn = await request({ agent, step: 1, signal }, async () => ({ provider: 'old', model: 'old' }))
+  assert.notDeepEqual({ provider: nextTurn.provider, model: nextTurn.model }, { provider: first.provider, model: first.model })
 })
 
 test('simple collective answer receives persona without turning it into collaboration', async () => {

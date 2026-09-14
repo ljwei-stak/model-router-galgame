@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react'
 import { SafeMarkdownText } from './SafeMarkdownText.jsx'
 import { characterForModel } from './characters.mjs'
 import { shouldRenderMarkdown } from './transcript.mjs'
+import { selectReasoningEffort } from '../shared/router.mjs'
 
 function formatTime(value) {
   if (!Number.isFinite(value) || value <= 0) return '刚刚'
@@ -21,9 +22,19 @@ export function ModelPicker({ mode, snapshot, actions, onMode, selectedRoute }) 
   const groups = Array.isArray(snapshot?.groups) ? snapshot.groups : []
   const options = useMemo(() => {
     const rows = []
-    for (const group of groups) for (const model of group.models ?? []) rows.push({ provider: group.id, model: model.id, label: model.name || model.id })
+    for (const group of groups) for (const model of group.models ?? []) {
+      const effortRows = Array.isArray(model.reasoning?.efforts) ? model.reasoning.efforts : []
+      rows.push({
+        provider: group.id,
+        model: model.id,
+        label: model.name || model.id,
+        reasoningEfforts: effortRows.map(effort => effort.id),
+        reasoningLabels: Object.fromEntries(effortRows.map(effort => [effort.id, effort.name || effort.id])),
+        defaultReasoningEffort: model.reasoning?.defaultEffort,
+      })
+    }
     if (rows.length > 0) return rows
-    return (snapshot?.available ?? []).map(route => ({ provider: route.provider, model: route.model, label: route.model }))
+    return (snapshot?.available ?? []).map(route => ({ ...route, label: route.model, reasoningLabels: {} }))
   }, [groups, snapshot?.available])
   useEffect(() => {
     // The directory normally preloads at session mount. This retry covers a
@@ -33,6 +44,9 @@ export function ModelPicker({ mode, snapshot, actions, onMode, selectedRoute }) 
   }, [actions, groups.length, mode, snapshot?.status])
   const current = snapshot?.current ?? selectedRoute ?? null
   const value = current ? `${current.provider}\u0000${current.model}` : ''
+  const currentOption = options.find(option => option.provider === current?.provider && option.model === current?.model)
+  const currentEfforts = currentOption?.reasoningEfforts ?? []
+  const currentEffort = current?.reasoningEffort ?? currentOption?.defaultReasoningEffort ?? selectReasoningEffort(currentEfforts, 'medium') ?? ''
   return (
     <div className="gv-model-picker">
       <div className="gv-picker-label">会话方式</div>
@@ -41,13 +55,17 @@ export function ModelPicker({ mode, snapshot, actions, onMode, selectedRoute }) 
         <button type="button" className={mode === 'single' ? 'is-on' : ''} onClick={() => onMode('single')}>单独会话</button>
       </div>
       {mode === 'single' ? (
-        <label className="gv-picker-select">
+        <>
+          <label className="gv-picker-select">
           <span>当前女仆</span>
           <select
             value={value}
             onChange={event => {
               const [provider, model] = String(event.target.value).split('\u0000')
-              if (provider && model) void actions?.select?.({ provider, model })
+              const option = options.find(row => row.provider === provider && row.model === model)
+              const reasoningEffort = option?.defaultReasoningEffort
+                ?? selectReasoningEffort(option?.reasoningEfforts, current?.reasoningEffort ?? 'medium')
+              if (provider && model) void actions?.select?.({ provider, model, ...(reasoningEffort === undefined ? {} : { reasoningEffort }) })
             }}
             onFocus={() => actions?.load?.()}
             aria-label="选择单独会话模型"
@@ -55,9 +73,26 @@ export function ModelPicker({ mode, snapshot, actions, onMode, selectedRoute }) 
             <option value="">{snapshot?.status === 'loading' ? '正在读取模型…' : '选择模型'}</option>
             {options.map(option => <option key={`${option.provider}\u0000${option.model}`} value={`${option.provider}\u0000${option.model}`}>{option.label}</option>)}
           </select>
-        </label>
+          </label>
+          {currentEfforts.length > 0 && (
+            <label className="gv-picker-select">
+              <span>推理等级</span>
+              <select
+                value={currentEffort}
+                onChange={event => {
+                  if (current?.provider && current?.model && event.target.value) {
+                    void actions?.select?.({ provider: current.provider, model: current.model, reasoningEffort: event.target.value })
+                  }
+                }}
+                aria-label="选择单独会话推理等级"
+              >
+                {currentEfforts.map(effort => <option key={effort} value={effort}>{currentOption?.reasoningLabels?.[effort] ?? effort}</option>)}
+              </select>
+            </label>
+          )}
+        </>
       ) : (
-        <div className="gv-picker-note">由 Harness 根据复杂度、专长、LiveBench 质量、成本、延迟和风险自动分配</div>
+        <div className="gv-picker-note">由 Harness 根据复杂度、推理等级、专长、LiveBench 质量、成本、延迟和风险自动分配</div>
       )}
       {snapshot?.error && <div className="gv-picker-error">模型目录：{snapshot.error}</div>}
     </div>
@@ -104,7 +139,7 @@ export function CollaborationBoard({ plan, activeRoute, nodes, running }) {
       <summary className="gv-board-summary">
         <span className="gv-board-title">协作流程</span>
         <span className="gv-board-progress">{progress}</span>
-        <span className="gv-board-synth">汇报：{plan.synthesizer?.model || 'DeepSeek V4 Pro（自动回退）'}</span>
+        <span className="gv-board-synth">汇报：{plan.synthesizer?.model || 'DeepSeek V4 Pro（自动回退）'}{plan.synthesizer?.reasoningEffort ? ` · ${plan.synthesizer.reasoningEffort}` : ''}</span>
       </summary>
       <div className="gv-collab-body">
         <div className="gv-task-list">
@@ -115,13 +150,13 @@ export function CollaborationBoard({ plan, activeRoute, nodes, running }) {
                 <MaidAvatar model={task.recommended} active={task.active} />
                 <div className="gv-task-main">
                   <div className="gv-task-title"><span>{index + 1}. {task.name}</span><b>{task.completed ? '已完成' : task.active ? '工作中' : '排队'}</b></div>
-                  <div className="gv-task-meta">{character.label} · {task.recommendedProvider || '自动路由'}/{task.recommended} · {task.type}</div>
+                  <div className="gv-task-meta">{character.label} · {task.recommendedProvider || '自动路由'}/{task.recommended} · 推理 {task.recommendedReasoningEffort || '提供方默认'} · {task.type}</div>
                 </div>
               </div>
             )
           })}
         </div>
-        {activeRoute && <div className="gv-board-foot">当前请求：{activeRoute.provider}/{activeRoute.model}</div>}
+        {activeRoute && <div className="gv-board-foot">当前请求：{activeRoute.provider}/{activeRoute.model} · 推理 {activeRoute.reasoningEffort || '提供方默认'}</div>}
       </div>
     </details>
   )
@@ -143,6 +178,7 @@ export function AnalysisSummary({ plan }) {
           <span>成本 <b>{Math.round((weights.cost ?? 0) * 100)}%</b></span>
           <span>延迟 <b>{Math.round((weights.latency ?? 0) * 100)}%</b></span>
           <span>专长 <b>{Math.round((weights.specialty ?? 0) * 100)}%</b></span>
+          <span>推理等级 <b>{Math.round((weights.reasoning ?? 0) * 100)}%</b></span>
           <span>风险 <b>{Math.round((weights.risk ?? 0) * 100)}%</b></span>
           <span>质量下限 <b>{Math.round((plan.optimization?.qualityFloor ?? 0) * 100)}%</b></span>
         </div>
@@ -153,10 +189,10 @@ export function AnalysisSummary({ plan }) {
         <div className="gv-analysis-breakdown"><span>LiveBench：{plan.optimization?.liveBench?.fetchedAt ? `快照 ${formatTime(Number(plan.optimization.liveBench.fetchedAt))}${plan.optimization.liveBench.stale ? '（沿用上次快照）' : ''}` : '未完成联网核验，使用实验基线'}</span><span>数据源：{plan.optimization?.liveBench?.source ?? 'experimental-baseline'}</span></div>
         {Array.isArray(plan.costBreakdown) && plan.costBreakdown.length > 0 && (
           <div className="gv-analysis-breakdown">
-            {plan.costBreakdown.map(row => <span key={`${row.stage}-${row.provider}-${row.model}`}>阶段 {row.stage} · {row.model} · 输入 {row.inputTokens}（缓存读 {row.cacheReadTokens ?? 0} / 写 {row.cacheWriteTokens ?? 0}）/ 输出 {row.outputTokens} tokens · 质量 {Math.round(Number(row.quality ?? 0) * 100)}% · ${Number(row.estimatedCost ?? 0).toFixed(6)}</span>)}
+            {plan.costBreakdown.map(row => <span key={`${row.stage}-${row.provider}-${row.model}`}>阶段 {row.stage} · {row.model} · 推理 {row.reasoningEffort || '提供方默认'}（匹配 {Math.round(Number(row.reasoningFit ?? 0) * 100)}%）· 输入 {row.inputTokens}（缓存读 {row.cacheReadTokens ?? 0} / 写 {row.cacheWriteTokens ?? 0}）/ 输出 {row.outputTokens} tokens · 质量 {Math.round(Number(row.quality ?? 0) * 100)}% · ${Number(row.estimatedCost ?? 0).toFixed(6)}</span>)}
           </div>
         )}
-        <div className="gv-analysis-candidates">{(plan.candidates ?? []).slice(0, 5).map(candidate => <span key={`${candidate.provider}/${candidate.model}`}>{candidate.model} · 综合 {Math.round(candidate.score * 100)}% · 质量 {Math.round(Number(candidate.quality ?? 0) * 100)}% · 专长 {Math.round(Number(candidate.specialty ?? 0) * 100)}% · ${Number(candidate.inputPrice ?? 0).toFixed(2)}/${Number(candidate.outputPrice ?? 0).toFixed(2)}</span>)}</div>
+        <div className="gv-analysis-candidates">{(plan.candidates ?? []).slice(0, 5).map(candidate => <span key={`${candidate.provider}/${candidate.model}`}>{candidate.model} · 推理 {candidate.reasoningEffort || '提供方默认'} · 综合 {Math.round(candidate.score * 100)}% · 质量 {Math.round(Number(candidate.quality ?? 0) * 100)}% · 专长 {Math.round(Number(candidate.specialty ?? 0) * 100)}% · ${Number(candidate.inputPrice ?? 0).toFixed(2)}/${Number(candidate.outputPrice ?? 0).toFixed(2)}</span>)}</div>
       </div>
     </details>
   )

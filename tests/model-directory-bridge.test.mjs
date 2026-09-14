@@ -5,11 +5,14 @@ import { catalogSnapshot, selectModelThroughRemote } from '../.dsh-plugin/client
 test('catalogSnapshot exposes every Host model without erasing the last good catalog', () => {
   const ready = catalogSnapshot({
     default: { provider: 'deepseek-official', model: 'deepseek-v4-pro' },
-    groups: [{ id: 'deepseek-official', models: [{ id: 'deepseek-v4-flash' }, { id: 'deepseek-v4-pro' }] }],
+    groups: [{ id: 'deepseek-official', models: [
+      { id: 'deepseek-v4-flash' },
+      { id: 'deepseek-v4-pro', reasoning: { efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }], defaultEffort: 'high' } },
+    ] }],
   })
   assert.deepEqual(ready.available, [
-    { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
-    { provider: 'deepseek-official', model: 'deepseek-v4-pro' },
+    { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningKnown: true, reasoningEfforts: [] },
+    { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningKnown: true, reasoningEfforts: ['low', 'high'], defaultReasoningEffort: 'high' },
   ])
   assert.deepEqual(catalogSnapshot({ groups: [] }, ready), ready)
 })
