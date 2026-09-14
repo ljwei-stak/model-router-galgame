@@ -6,7 +6,7 @@ A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. 
 
 **Current release: 0.4.32** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame/v/0.4.32) · [GitHub Release v0.4.32](https://github.com/ljwei-stak/model-router-galgame/releases/tag/v0.4.32) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
-Version 0.4.32 was installed from the npm registry into a DSH Desktop 2.0.10 profile and regression-tested: ordinary conversation responded successfully, and a complex collective task completed all four stages with `high / high / high / xhigh` reasoning efforts. The GitHub Release includes a byte-identical npm tarball; its SHA-256 is `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`.
+Version 0.4.32 was installed from the npm registry into a DSH Desktop 2.0.10 profile and regression-tested: ordinary conversation responded successfully, and a complex collective task completed all four stages with `high / high / high / xhigh` reasoning efforts. The router can also select `low`, `medium`, `high`, `xhigh`, or `max` when the host adapter exposes those capabilities; the exact list is model-specific. The GitHub Release includes a byte-identical npm tarball; its SHA-256 is `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`.
 
 ## Features
 
@@ -44,15 +44,21 @@ The episode contains 666 nodes and 44 dilemmas. Its replay-derived state tracks 
 
 Story mode does not require provider credentials. Free mode requires a working model connection; the included dialogue artwork and expression assets do not require an image API.
 
+### Vision engine
+
+- **ModLens** provides routed image understanding; see [`liustack/modlens`](https://github.com/liustack/modlens).
+
 ### Web tools, browser access, and approvals
 
-- **ModSearch** connects native `web_search` to ModSearch through the bundle and supplies `read_page` / `x_search`.
-- **Ego Browser** provides visible browser tools for tasks requiring JavaScript, login sessions, or page interaction. The router guides models to switch to the browser after search failures; users complete CAPTCHAs and human verification.
-- **Approval integration** attaches work-package, stage, model, and task-count context to sandbox escalation requests in multi-task work. Approval decisions, human confirmation, auditing, and learning are handled by `@ljwei-stak/dsh-approval-gate` and the host permission policy. Installing the router does not enable automatic approval.
+- **ModSearch** connects native `web_search` to ModSearch through the bundle and supplies `read_page` / `x_search`; see [`liustack/modsearch`](https://github.com/liustack/modsearch).
+- **Ego Browser** provides visible browser tools for tasks requiring JavaScript, login sessions, or page interaction. The router guides models to switch to the browser after search failures; users complete CAPTCHAs and human verification. See [`Fisfzy/dsh-ego-browser`](https://github.com/Fisfzy/dsh-ego-browser).
+- **Approval integration** attaches work-package, stage, model, and task-count context to sandbox escalation requests in multi-task work. Approval decisions, human confirmation, auditing, and learning are handled by `@ljwei-stak/dsh-approval-gate` and the host permission policy. Installing the router does not enable automatic approval. See [`moon09300731/dsh-approval-gate`](https://github.com/moon09300731/dsh-approval-gate).
 - **OpenCode Zen compatibility** repairs OpenCode endpoint overrides mistakenly set to official website URLs while preserving custom gateways.
 - **DSH Desktop 2.0.10 compatibility** uses the host's supported plugin-source forms for routing, persona, and web context, and declares the `webServer` service required by GAL and update RPC registration.
 
 ### PowerPoint generation with PPT Master
+
+See [`hugohe3/ppt-master`](https://github.com/hugohe3/ppt-master).
 
 - **PPT Master** is bundled as a native DSH skill. In a normal work conversation, a PowerPoint/PPT/PPTX request can load `ppt-master` through the host's `skill` tool and follow its planning, SVG, validation, and PPTX export workflow.
 - Model Router keeps the host's skill catalog, loaded skill instructions, and file/terminal tools available when it chooses a model or advances a work stage. Use ordinary chat or the GAL conversation view for presentation work; story mode does not run tools, and free-play character dialogue is not the work agent.
@@ -60,6 +66,8 @@ Story mode does not require provider credentials. Free mode requires a working m
 - Router 0.4.32 bundles PPT Master 6.3.3, which supports the managed Python root and avoids the faulty Windows Bash runner in DSH Desktop 2.0.7. It also includes the PPTX staging-directory permission repair from 6.3.2. Host sandbox and approval settings remain in effect.
 
 ### Watcher work paths and model usage
+
+See [`aa2246740/dsh-watcher`](https://github.com/aa2246740/dsh-watcher).
 
 Router 0.4.32 includes [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG), built against the DSH 0.1.5 SDK and tested in DSH Desktop 2.0.10.
 Open the eye button in the native session header from Chat or the GAL work view
