@@ -4,7 +4,9 @@ English | [中文](README.zh.md)
 
 A model-routing and GAL conversation plugin for DeepSeek Harness / DSH Desktop. It combines task assignment, cost estimates, model-character dialogue, web tools, PPT generation skills, and approval integration in one npm package, and runs inside an existing DSH host.
 
-**Current release: 0.4.32** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**Current release: 0.4.32** · [npm package](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame/v/0.4.32) · [GitHub Release v0.4.32](https://github.com/ljwei-stak/model-router-galgame/releases/tag/v0.4.32) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+
+Version 0.4.32 was installed from the npm registry into a DSH Desktop 2.0.10 profile and regression-tested: ordinary conversation responded successfully, and a complex collective task completed all four stages with `high / high / high / xhigh` reasoning efforts. The GitHub Release includes a byte-identical npm tarball; its SHA-256 is `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`.
 
 ## Features
 
@@ -198,7 +200,7 @@ The default mode is `collective`. `/router safety` and `/router web` are status 
 
 ### Update the plugin
 
-Desktop users already running `0.4.20` can open "GAL 视窗 → 项目更新" (GAL view → Project updates), click "检查更新" (Check for updates), then choose "仅更新 npm 插件" (Update only the npm plugin). The host queries npm again, installs the exact version, and avoids downgrades. Fully exit and restart DSH Desktop afterward.
+Desktop users on an older release can open "GAL 视窗 → 项目更新" (GAL view → Project updates), click "检查更新" (Check for updates), then choose "仅更新 npm 插件" (Update only the npm plugin). The host queries npm again, installs the exact version, and avoids downgrades. Fully exit and restart DSH Desktop afterward.
 
 You can also update manually in the DSH terminal for the current profile:
 

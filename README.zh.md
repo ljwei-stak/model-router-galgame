@@ -4,7 +4,9 @@
 
 适用于 DeepSeek Harness / DSH Desktop 的模型路由与 GAL 对话插件。它把任务分配、费用估算、模型角色对话、联网工具、PPT 生成技能和审批适配整合为一个 npm 插件包，需要在已有的 DSH 宿主中使用。
 
-**当前发布版本：0.4.32** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame) · [GitHub Releases](https://github.com/ljwei-stak/model-router-galgame/releases) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+**当前发布版本：0.4.32** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame/v/0.4.32) · [GitHub Release v0.4.32](https://github.com/ljwei-stak/model-router-galgame/releases/tag/v0.4.32) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
+
+0.4.32 已从 npm 注册表安装到 DSH Desktop 2.0.10 profile 并完成回归：普通对话可正常响应，复杂集体任务的四个阶段均成功完成，推理等级为 `high / high / high / xhigh`。GitHub Release 附带与 npm 包逐字节一致的 tarball，SHA-256 为 `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`。
 
 ## 功能介绍
 
@@ -194,7 +196,7 @@ npx --yes --package=@ljwei-stak/ppt-master-for-mgr@6.3.3 ppt-master-for-mgr doct
 
 ### 更新插件
 
-已安装 `0.4.20` 的桌面端用户，可在“GAL 视窗 → 项目更新”先点击“检查更新”，再选择“仅更新 npm 插件”。宿主会重新查询 npm，安装确切版本并避免降级。成功后完全退出并重新启动 DSH Desktop。
+已安装旧版本的桌面端用户，可在“GAL 视窗 → 项目更新”先点击“检查更新”，再选择“仅更新 npm 插件”。宿主会重新查询 npm，安装确切版本并避免降级。成功后完全退出并重新启动 DSH Desktop。
 
 也可在当前 profile 的 DSH 终端中手动更新：
 
