@@ -6,7 +6,7 @@
 
 **当前发布版本：0.4.32** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame/v/0.4.32) · [GitHub Release v0.4.32](https://github.com/ljwei-stak/model-router-galgame/releases/tag/v0.4.32) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
-0.4.32 已从 npm 注册表安装到 DSH Desktop 2.0.10 profile 并完成回归：普通对话可正常响应，复杂集体任务的四个阶段均成功完成，推理等级为 `low / medium / high / max`。GitHub Release 附带与 npm 包逐字节一致的 tarball，SHA-256 为 `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`。
+0.4.32 已从 npm 注册表安装到 DSH Desktop 2.0.10 profile 并完成回归：普通对话可正常响应，复杂集体任务的四个阶段均成功完成，推理等级为 `low / medium / high / xhigh / max`。GitHub Release 附带与 npm 包逐字节一致的 tarball，SHA-256 为 `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`。
 
 ## 功能介绍
 
@@ -43,9 +43,9 @@
 《千桥协议》含 666 个节点、44 处两难选择。状态由开放、安全、自主、证据与团结五条全局立场轴、33 项角色承诺和 42 项证据共同组成；存档读取时按选择轨迹重放。协议组合可到达六类制度结局，关系尾声与 44 种支线收束均独立计算。
 
 剧情模式不需要配置模型凭据；自由模式需要可用模型连接。对话框与表情素材已经随插件提供，游玩不需要图片 API。
-
+### 视觉引擎
+- **ModLens**：参考[`liustack/modlens`](https://github.com/liustack/modlens)
 ### 联网、浏览器与审批
-
 - **ModSearch**：通过 bundle 将原生 `web_search` 接入 ModSearch，并提供 `read_page` / `x_search`。参考[`liustack/modsearch`](https://github.com/liustack/modsearch)
 - **Ego Browser**：为需要 JavaScript、登录态或页面交互的任务提供可见浏览器工具。路由器向模型提供搜索失败后切换浏览器的指导；验证码和人机验证交由用户完成。参考[`Fisfzy/dsh-ego-browser`](https://github.com/Fisfzy/dsh-ego-browser)
 - **审批适配**：在多任务沙箱升级请求中附加工作包、阶段、模型和任务数量。审批决定、人工确认、审计与学习由 `@ljwei-stak/dsh-approval-gate` 和宿主权限策略负责，安装路由器不等于开启自动批准。参考[`moon09300731/dsh-approval-gate`](https://github.com/moon09300731/dsh-approval-gate)
