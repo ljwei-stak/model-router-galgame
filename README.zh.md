@@ -6,7 +6,7 @@
 
 **当前发布版本：0.4.32** · [npm 包](https://www.npmjs.com/package/@ljwei-stak/model-router-galgame/v/0.4.32) · [GitHub Release v0.4.32](https://github.com/ljwei-stak/model-router-galgame/releases/tag/v0.4.32) · [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop/releases)
 
-0.4.32 已从 npm 注册表安装到 DSH Desktop 2.0.10 profile 并完成回归：普通对话可正常响应，复杂集体任务的四个阶段均成功完成，推理等级为 `high / high / high / xhigh`。GitHub Release 附带与 npm 包逐字节一致的 tarball，SHA-256 为 `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`。
+0.4.32 已从 npm 注册表安装到 DSH Desktop 2.0.10 profile 并完成回归：普通对话可正常响应，复杂集体任务的四个阶段均成功完成，推理等级为 `low / medium / high / max`。GitHub Release 附带与 npm 包逐字节一致的 tarball，SHA-256 为 `d13b1864b591c784a6f4577278290262a1f51ae8c22239605e8c69018d7c7b4f`。
 
 ## 功能介绍
 
@@ -46,21 +46,21 @@
 
 ### 联网、浏览器与审批
 
-- **ModSearch**：通过 bundle 将原生 `web_search` 接入 ModSearch，并提供 `read_page` / `x_search`。
-- **Ego Browser**：为需要 JavaScript、登录态或页面交互的任务提供可见浏览器工具。路由器向模型提供搜索失败后切换浏览器的指导；验证码和人机验证交由用户完成。
-- **审批适配**：在多任务沙箱升级请求中附加工作包、阶段、模型和任务数量。审批决定、人工确认、审计与学习由 `@ljwei-stak/dsh-approval-gate` 和宿主权限策略负责，安装路由器不等于开启自动批准。
+- **ModSearch**：通过 bundle 将原生 `web_search` 接入 ModSearch，并提供 `read_page` / `x_search`。参考[`liustack/modsearch`](https://github.com/liustack/modsearch)
+- **Ego Browser**：为需要 JavaScript、登录态或页面交互的任务提供可见浏览器工具。路由器向模型提供搜索失败后切换浏览器的指导；验证码和人机验证交由用户完成。参考[`Fisfzy/dsh-ego-browser`](https://github.com/Fisfzy/dsh-ego-browser)
+- **审批适配**：在多任务沙箱升级请求中附加工作包、阶段、模型和任务数量。审批决定、人工确认、审计与学习由 `@ljwei-stak/dsh-approval-gate` 和宿主权限策略负责，安装路由器不等于开启自动批准。参考[`moon09300731/dsh-approval-gate`](https://github.com/moon09300731/dsh-approval-gate)
 - **OpenCode Zen 兼容**：修复误填成官方网页地址的 OpenCode 端点覆盖，保留自定义网关。
 - **DSH Desktop 2.0.10 兼容**：路由、Persona 与联网指令只使用宿主支持的插件消息来源类型，并声明 GAL 与更新 RPC 注册所需的 `webServer` 服务。
 
 ### PPT Master 演示文稿生成
-
+参考[`hugohe3/ppt-master`](https://github.com/hugohe3/ppt-master)
 - **PPT Master** 以 DSH 原生 skill 随包加载。在普通工作会话中收到 PowerPoint/PPT/PPTX 需求后，模型可通过宿主 `skill` 工具加载 `ppt-master`，按规划、SVG 制作、检查和 PPTX 导出的流程执行。
 - Model Router 在选择模型和推进工作阶段时保留宿主技能目录、已加载的技能指令及文件/终端工具。制作 PPT 应使用普通聊天或 GAL 工作会话；剧情模式不调用工具，自由模式的角色对话也不是工作代理。
 - 包内包含技能、Python 脚本和模板。Python 依赖需按下方步骤主动安装，npm 安装不会自动安装 Python 或运行 pip。生成的演示文稿保存在会话可写工作目录中。
 - Router 0.4.32 随包加载 PPT Master 6.3.3，支持受管 Python 根目录，并避开 DSH Desktop 2.0.7 中有故障的 Windows Bash 运行器；同时保留 6.3.2 的 PPTX 临时目录权限修复。宿主沙箱和审批设置仍然生效。
 
 ### Watcher 工作路径与模型用量
-
+参考 [`aa2246740/dsh-watcher`](https://github.com/aa2246740/dsh-watcher) 
 Router 0.4.32 聚合 [`@ljwei-stak/dsh-watcher-for-mrg@0.4.1`](https://github.com/ljwei-stak/dsh-watcher-For_MRG)，使用 DSH 0.1.5 SDK 构建，并在 DSH Desktop 2.0.10 中测试。
 在普通对话或 GAL 工作视图中，点击原生会话标题栏的眼睛按钮，可查看轮次、并行工具、
 重试、耗时和已记录的 token 用量。设置中的 Watcher 页面汇总本地会话用量；Router
